@@ -1977,9 +1977,9 @@ public class Cpu
 		Flag.C = (A >= v) != 0;
 	}
 
-	void Execute_CPX(BYTE v)
+	void Execute_CPX(byte v)
 	{
-		WORD t = X - v;
+		ushort t = X - v;
 		// 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
 		// 	Flag.Z = X == v;					// Set if X = M
 		// 	Flag.C = X >= v;					// Set if X >= M
@@ -1989,7 +1989,7 @@ public class Cpu
 		Flag.C = (X >= v) != 0;
 	}
 
-	void Execute_CPY(BYTE v)
+	void Execute_CPY(byte v)
 	{
 		WORD t = Y - v;
 		// 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
@@ -2001,7 +2001,7 @@ public class Cpu
 		Flag.C = (Y >= v) != 0;
 	}
 
-	void CPU::Execute_ASL(BYTE &v, int &cycle)
+	void Execute_ASL(ref byte v, ref int cycle)
 	{
 		Flag.C = (v & FLAG_NEGATIVE) > 0;
 		v = v << 1;
@@ -2009,7 +2009,7 @@ public class Cpu
 		SetZeroNegative(v);
 	}
 
-	void CPU::Execute_LSR(BYTE& v, int& cycle)
+	void Execute_LSR(ref byte v, ref int cycle)
 	{
 		Flag.C = (v & 0x01);
 		v = v >> 1;
@@ -2024,7 +2024,7 @@ public class Cpu
 	  Operation:   +-< |7|6|5|4|3|2|1|0| <- |C| <-+         N Z C I D V
 					   +-+-+-+-+-+-+-+-+    +-+             / / / _ _ _
 	*/
-	void CPU::Execute_ROL(BYTE& v, int& cycle)
+	void Execute_ROL(ref byte v, ref int cycle)
 	{
 		// 이전의 carry flag값을 Shift후의 0bit에 채워준다
 		BYTE oldcarry = Flag.C ? 0x01 : 0x00;
@@ -2042,10 +2042,10 @@ public class Cpu
 	  Operation:   +-> |C| -> |7|6|5|4|3|2|1|0| >-+         N Z C I D V
 					   +-+    +-+-+-+-+-+-+-+-+             / / / _ _ _
 	*/
-	void CPU::Execute_ROR(BYTE& v, int& cycle)
+	void Execute_ROR(ref byte v, ref int cycle)
 	{
 		// 최하비트가 1인가? -> 다음 캐리비트로 설정
-		BYTE oldcarry = (v & FLAG_CARRY) > 0;
+		byte oldcarry = (v & FLAG_CARRY) > 0;
 		v = v >> 1;
 		// 이전 Carry가 1이면 NEGATIVE 채움
 		v |= (Flag.C ? FLAG_NEGATIVE : 0);
@@ -2055,7 +2055,7 @@ public class Cpu
 	}
 
 
-	void CPU::Execute_BRANCH(bool v, bool condition, Memory &mem, int &cycle)
+	void Execute_BRANCH(bool v, bool condition, Memory mem, ref int cycle)
 	{
 		SBYTE offset = (SBYTE)Fetch(mem, cycle);
 		if (v == condition)
