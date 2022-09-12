@@ -1,6 +1,6 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-
 
 static class Define
 {
@@ -39,10 +39,11 @@ static class Define
     public const byte FLAG_BREAK = 0b0001_0000;
     public const byte FLAG_UNUSED = 0b0010_0000;
     public const byte FLAG_OVERFLOW = 0b0100_0000;
-    public const byte FLAG_NEGATIVE = 0b1000_0000;
+	//public const byte FLAG_NEGATIVE = 128;//0b1000_0000;
+	public const byte FLAG_NEGATIVE = 0b1000_0000;
 
-    // LDA (LoaD Accumulator)
-    public const byte LDA_IM = 0xA9;
+	// LDA (LoaD Accumulator)
+	public const byte LDA_IM = 0xA9;
     public const byte LDA_ZP = 0xA5;
     public const byte LDA_ZPX = 0xB5;
     public const byte LDA_ABS = 0xAD;
@@ -247,9 +248,31 @@ static class Define
 
 public class Cpu
 {
+    struct StatusFlags
+    {
+// 		public byte C;         //0: Carry Flag	
+// 		public byte Z;         //1: Zero Flag
+// 		public byte I;         //2: Interrupt disable
+// 		public byte D;         //3: Decimal mode
+// 		public byte B;         //4: Break
+// 		public byte Unused;    //5: Unused
+// 		public byte V;         //6: Overflow
+// 		public byte N;         //7: Negative
+		public bool C;         //0: Carry Flag	
+		public bool Z;         //1: Zero Flag
+		public bool I;         //2: Interrupt disable
+		public bool D;         //3: Decimal mode
+		public bool B;         //4: Break
+		public bool Unused;    //5: Unused
+		public bool V;         //6: Overflow
+		public bool N;         //7: Negative
 
-    // REGISTER
-    public byte A;
+    };
+
+	StatusFlags Flag = new StatusFlags();
+
+	// REGISTER
+	public byte A;
     public byte X;
     public byte Y;
 
@@ -629,7 +652,7 @@ public class Cpu
 				case Define.STA_INDY:  // 6 cycle
 					{
 						// ZeroPage에서 WORD address얻고 address + Y에 가르키는곳에 A레지스터 내용쓰기 
-						BYTE zp = Fetch(mem, ref cycle);
+						byte zp = Fetch(mem, ref cycle);
 						ushort addr = ReadWord(mem, zp, ref cycle);
 						addr += Y;
 						cycle--;
@@ -859,7 +882,7 @@ public class Cpu
 
 				case Define.ORA_IM:
 					{
-						A |= Fetch(mem, cycle);
+						A |= Fetch(mem, ref cycle);
 						SetZeroNegative(A);
 					}
 					break;
@@ -997,9 +1020,13 @@ public class Cpu
 						ushort addr = addr_mode_ZP(mem, ref cycle);
 						byte R = ReadByte(mem, addr, ref cycle);
 
-						Flag.Z = !(A & R);
-						Flag.N = (R & FLAG_NEGATIVE) != 0;
-						Flag.V = (R & FLAG_OVERFLOW) != 0;
+                        //Flag.Z = !(A & R);
+                        //Flag.N = (R & FLAG_NEGATIVE) != 0;
+                        //Flag.V = (R & FLAG_OVERFLOW) != 0;
+                        Flag.Z = (A & R) == 0;
+						Flag.N = (R & Define.FLAG_NEGATIVE) != 0;
+						Flag.V = (R & Define.FLAG_OVERFLOW) != 0;
+
 					}
 					break;
 
@@ -1010,11 +1037,14 @@ public class Cpu
 						ushort addr = addr_mode_ABS(mem, ref cycle);
 						byte R = ReadByte(mem, addr, ref cycle);
 
-						Flag.Z = !(A & R);
-						Flag.N = (R & FLAG_NEGATIVE) != 0;
-						Flag.V = (R & FLAG_OVERFLOW) != 0;
+                        //Flag.Z = !(A & R);
+                        //Flag.N = (R & Define.FLAG_NEGATIVE) != 0;
+                        //Flag.V = (R & Define.FLAG_OVERFLOW) != 0;
+                        Flag.Z = (A & R) == 0;
+                        Flag.N = (R & Define.FLAG_NEGATIVE) != 0;
+                        Flag.V = (R & Define.FLAG_OVERFLOW) != 0;
 
-					}
+                    }
 					break;
 
 				////////////////////////////////////////////////////////////////////////////// Register Transfer
@@ -1063,8 +1093,10 @@ public class Cpu
 						// Increment X Register / X,Z,N = X+1
 						X++;
 						cycle--;
+						//Flag.Z = (X == 0);
+						//Flag.N = (X & Define.FLAG_NEGATIVE) != 0;
 						Flag.Z = (X == 0);
-						Flag.N = (X & FLAG_NEGATIVE) != 0;
+						Flag.N = (X & Define.FLAG_NEGATIVE) != 0;
 					}
 					break;
 
@@ -1073,17 +1105,21 @@ public class Cpu
 						// Increment Y Register / Y,Z,N = Y+1
 						Y++;
 						cycle--;
-						Flag.Z = (Y == 0);
-						Flag.N = (Y & FLAG_NEGATIVE) != 0;
-					}
+                        //Flag.Z = (Y == 0);
+                        //Flag.N = (Y & FLAG_NEGATIVE) != 0;
+                        Flag.Z = (Y == 0);
+                        Flag.N = (Y & Define.FLAG_NEGATIVE) != 0;
+                    }
 					break;
 				case Define.DEX:   // 2 cycle
 					{
 						// Decrease X Register / X,Z,N = X+1
 						X--;
 						cycle--;
+						//Flag.Z = (X == 0);
+						//Flag.N = (X & FLAG_NEGATIVE) != 0;
 						Flag.Z = (X == 0);
-						Flag.N = (X & FLAG_NEGATIVE) != 0;
+						Flag.N = (X & Define.FLAG_NEGATIVE) != 0;
 
 					}
 					break;
@@ -1093,10 +1129,11 @@ public class Cpu
 						// Decrement Y Register / Y,Z,N = Y+1
 						Y--;
 						cycle--;
-						Flag.Z = (Y == 0);
-						Flag.N = (Y & FLAG_NEGATIVE) != 0;
-
-					}
+                        //Flag.Z = (Y == 0);
+                        //Flag.N = (Y & FLAG_NEGATIVE) != 0;
+                        Flag.Z = (Y == 0);
+                        Flag.N = (Y & Define.FLAG_NEGATIVE) != 0;
+                    }
 					break;
 
 				case Define.INC_ZP:
@@ -1224,7 +1261,7 @@ public class Cpu
 				case Define.ADC_ABSX:  // 4~5 cycle
 					{
 						ushort addr = addr_mode_ABSX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_ADC(v);
 					}
 					break;
@@ -1232,7 +1269,7 @@ public class Cpu
 				case Define.ADC_ABSY:  // 4~5 cycle
 					{
 						ushort addr = addr_mode_ABSY(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_ADC(v);
 					}
 					break;
@@ -1240,7 +1277,7 @@ public class Cpu
 				case Define.ADC_INDX:  // 6 cycle
 					{
 						ushort addr = addr_mode_INDX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_ADC(v);
 					}
 					break;
@@ -1248,7 +1285,7 @@ public class Cpu
 				case Define.ADC_INDY:  // 5~6 cycle
 					{
 						ushort addr = addr_mode_INDY(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_ADC(v);
 					}
 					break;
@@ -1259,7 +1296,7 @@ public class Cpu
 				// A, Z, C, N = A - M - (1 - C)
 				case Define.SBC_IM:    // 2 cycle
 					{
-						BYTE v = Fetch(mem, ref cycle);
+						byte v = Fetch(mem, ref cycle);
 						Execute_SBC(v);
 					}
 					break;
@@ -1267,15 +1304,15 @@ public class Cpu
 				case Define.SBC_ZP:    // 3 cycle
 					{
 						ushort addr = addr_mode_ZP(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_SBC(v);
 					}
 					break;
 
 				case Define.SBC_ZPX:
 					{
-						ushort addr = addr_mode_ZPX(mem, cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						ushort addr = addr_mode_ZPX(mem, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_SBC(v);
 					}
 					break;
@@ -1283,7 +1320,7 @@ public class Cpu
 				case Define.SBC_ABS:
 					{
 						ushort addr = addr_mode_ABS(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_SBC(v);
 					}
 					break;
@@ -1291,7 +1328,7 @@ public class Cpu
 				case Define.SBC_ABSX:
 					{
 						ushort addr = addr_mode_ABSX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_SBC(v);
 					}
 					break;
@@ -1299,7 +1336,7 @@ public class Cpu
 				case Define.SBC_ABSY:
 					{
 						ushort addr = addr_mode_ABSY(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_SBC(v);
 					}
 					break;
@@ -1307,7 +1344,7 @@ public class Cpu
 				case Define.SBC_INDX:
 					{
 						ushort addr = addr_mode_INDX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_SBC(v);
 					}
 					break;
@@ -1315,7 +1352,7 @@ public class Cpu
 				case Define.SBC_INDY:
 					{
 						ushort addr = addr_mode_INDY(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_SBC(v);
 					}
 					break;
@@ -1327,7 +1364,7 @@ public class Cpu
 				// valueand sets the zeroand carry flags as appropriate.
 				case Define.CMP_IM:
 					{
-						BYTE v = Fetch(mem, ref cycle);
+						byte v = Fetch(mem, ref cycle);
 						Execute_CMP(v);
 					}
 					break;
@@ -1335,7 +1372,7 @@ public class Cpu
 				case Define.CMP_ZP:
 					{
 						ushort addr = addr_mode_ZP(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CMP(v);
 					}
 					break;
@@ -1343,7 +1380,7 @@ public class Cpu
 				case Define.CMP_ZPX:
 					{
 						ushort addr = addr_mode_ZPX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CMP(v);
 					}
 					break;
@@ -1351,7 +1388,7 @@ public class Cpu
 				case Define.CMP_ABS:
 					{
 						ushort addr = addr_mode_ABS(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CMP(v);
 					}
 					break;
@@ -1359,7 +1396,7 @@ public class Cpu
 				case Define.CMP_ABSX:
 					{
 						ushort addr = addr_mode_ABSX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CMP(v);
 					}
 					break;
@@ -1367,7 +1404,7 @@ public class Cpu
 				case Define.CMP_ABSY:
 					{
 						ushort addr = addr_mode_ABSY(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CMP(v);
 					}
 					break;
@@ -1375,7 +1412,7 @@ public class Cpu
 				case Define.CMP_INDX:
 					{
 						ushort addr = addr_mode_INDX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CMP(v);
 					}
 
@@ -1384,7 +1421,7 @@ public class Cpu
 				case Define.CMP_INDY:
 					{
 						ushort addr = addr_mode_INDY(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CMP(v);
 					}
 					break;
@@ -1397,7 +1434,7 @@ public class Cpu
 				// held value and sets the zero and carry flags as appropriate.
 				case Define.CPX_IM:
 					{
-						BYTE v = Fetch(mem, ref cycle);
+						byte v = Fetch(mem, ref cycle);
 						Execute_CPX(v);
 					}
 					break;
@@ -1405,7 +1442,7 @@ public class Cpu
 				case Define.CPX_ZP:
 					{
 						ushort addr = addr_mode_ZP(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CPX(v);
 					}
 					break;
@@ -1413,14 +1450,14 @@ public class Cpu
 				case Define.CPX_ABS:
 					{
 						ushort addr = addr_mode_ABS(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CPX(v);
 					}
 					break;
 
 				case Define.CPY_IM:
 					{
-						BYTE v = Fetch(mem, ref cycle);
+						byte v = Fetch(mem, ref cycle);
 						Execute_CPY(v);
 					}
 					break;
@@ -1428,7 +1465,7 @@ public class Cpu
 				case Define.CPY_ZP:
 					{
 						ushort addr = addr_mode_ZP(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CPY(v);
 					}
 					break;
@@ -1436,7 +1473,7 @@ public class Cpu
 				case Define.CPY_ABS:
 					{
 						ushort addr = addr_mode_ABS(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
 						Execute_CPY(v);
 					}
 					break;
@@ -1448,15 +1485,15 @@ public class Cpu
 					{
 						// A,Z,C,N = M*2 or M,Z,C,N = M*2
 						// Carry Bit 계산을 먼저해야한다. Shift할 값자체가 -(NEG)인 경우 왼쪽 shift는 Carry를 일으키기 때문
-						Execute_ASL(A, ref cycle);
+						Execute_ASL(ref A, ref cycle);
 					}
 					break;
 
 				case Define.ASL_ZP: // 5 cycle
 					{
 						ushort addr = addr_mode_ZP(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ASL(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ASL(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
@@ -1464,8 +1501,8 @@ public class Cpu
 				case Define.ASL_ZPX: // 6 cycle
 					{
 						ushort addr = addr_mode_ZPX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ASL(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ASL(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
@@ -1473,8 +1510,8 @@ public class Cpu
 				case Define.ASL_ABS: // 6 cycle
 					{
 						ushort addr = addr_mode_ABS(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ASL(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ASL(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 
 					}
@@ -1483,8 +1520,8 @@ public class Cpu
 				case Define.ASL_ABSX: // 7 cycle
 					{
 						ushort addr = addr_mode_ABSX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ASL(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ASL(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 
 					}
@@ -1496,38 +1533,38 @@ public class Cpu
 				// Carry Flag :	Set to contents of old bit 0
 				case Define.LSR:   // 2 cycle
 					{
-						Execute_LSR(A, ref cycle);
+						Execute_LSR(ref A, ref cycle);
 					}
 					break;
 				case Define.LSR_ZP:    // 5 cycle
 					{
 						ushort addr = addr_mode_ZP(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_LSR(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_LSR(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
 				case Define.LSR_ZPX:   // 6 cycle
 					{
 						ushort addr = addr_mode_ZPX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_LSR(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_LSR(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
 				case Define.LSR_ABS:   // 6 cycle
 					{
 						ushort addr = addr_mode_ABS(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_LSR(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_LSR(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
 				case Define.LSR_ABSX:  // 7 cycle
 					{
 						ushort addr = addr_mode_ABSX_NoPage(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_LSR(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_LSR(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
@@ -1537,30 +1574,30 @@ public class Cpu
 				// the old bit 7 becomes the new carry flag value.
 				case Define.ROL:   // 2 cycle
 					{
-						Execute_ROL(A, ref cycle);
+						Execute_ROL(ref A, ref cycle);
 					}
 					break;
 				case Define.ROL_ZP:    // 5 cycle
 					{
 						ushort addr = addr_mode_ZP(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ROL(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ROL(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
 				case Define.ROL_ZPX:   // 6 cycle
 					{
 						ushort addr = addr_mode_ZPX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ROL(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ROL(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
 				case Define.ROL_ABS:   // 6 cycle
 					{
 						ushort addr = addr_mode_ABS(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ROL(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ROL(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
@@ -1568,8 +1605,8 @@ public class Cpu
 					{
 						// 여기는 ABS No page
 						ushort addr = addr_mode_ABSX_NoPage(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ROL(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ROL(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
@@ -1580,38 +1617,38 @@ public class Cpu
 				// the old bit 0 becomes the new carry flag value.
 				case Define.ROR:
 					{
-						Execute_ROR(A, ref cycle);
+						Execute_ROR(ref A, ref cycle);
 					}
 					break;
 				case Define.ROR_ZP:
 					{
 						ushort addr = addr_mode_ZP(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ROR(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ROR(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
 				case Define.ROR_ZPX:
 					{
 						ushort addr = addr_mode_ZPX(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ROR(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ROR(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
 				case Define.ROR_ABS:
 					{
 						ushort addr = addr_mode_ABS(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ROR(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ROR(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
 				case Define.ROR_ABSX:
 					{
 						ushort addr = addr_mode_ABSX_NoPage(mem, ref cycle);
-						BYTE v = ReadByte(mem, addr, ref cycle);
-						Execute_ROR(v, ref cycle);
+						byte v = ReadByte(mem, addr, ref cycle);
+						Execute_ROR(ref v, ref cycle);
 						WriteByte(mem, v, addr, ref cycle);
 					}
 					break;
@@ -1690,7 +1727,7 @@ public class Cpu
 				// Clear carry flag
 				case Define.CLC:   // 2 cycle
 					{
-						Flag.C = 0;
+						Flag.C = false;
 						cycle--;
 					}
 					break;
@@ -1698,7 +1735,7 @@ public class Cpu
 				// Clear Decimal Mode
 				case Define.CLD:   // 2 cycle
 					{
-						Flag.D = 0;
+						Flag.D = false;
 						cycle--;
 					}
 					break;
@@ -1706,7 +1743,7 @@ public class Cpu
 				// Clear Interrupt Disable
 				case Define.CLI:   // 2 cycle
 					{
-						Flag.I = 0;
+						Flag.I = false;
 						cycle--;
 					}
 					break;
@@ -1714,7 +1751,7 @@ public class Cpu
 				// Clear Overflow Flag
 				case Define.CLV:   // 2 cycle
 					{
-						Flag.V = 0;
+						Flag.V = false;
 						cycle--;
 					}
 					break;
@@ -1722,7 +1759,7 @@ public class Cpu
 				// Set carry flag
 				case Define.SEC:   // 2 cycle
 					{
-						Flag.C = 1;
+						Flag.C = true;
 						cycle--;
 					}
 					break;
@@ -1730,7 +1767,7 @@ public class Cpu
 				// Set decimal mode flag
 				case Define.SED:   // 2 cycle
 					{
-						Flag.D = 1;
+						Flag.D = true;
 						cycle--;
 					}
 					break;
@@ -1738,7 +1775,7 @@ public class Cpu
 				// Set interrupt disable flag
 				case Define.SEI:   // 2 cycle
 					{
-						Flag.I = 1;
+						Flag.I = true;
 						cycle--;
 					}
 					break;
@@ -1766,17 +1803,24 @@ public class Cpu
 				Flag.I = 1;
 #else
 						PC++;
-						WriteByte(mem, ((PC) >> 8) & 0xFF, 0x100 + SP, ref cycle);
+						byte v0 = (byte)(((PC) >> 8) & 0xFF);
+						WriteByte(mem, v0, 0x100 + SP, ref cycle);
 						SP--;
-						WriteByte(mem, PC & 0xFF, 0x100 + SP, ref cycle);
+						byte v1 = (byte)(PC & 0xFF);
+						WriteByte(mem, v1, 0x100 + SP, ref cycle);
 						SP--;
-						WriteByte(mem, PS | FLAG_BREAK, 0x100 + SP, ref cycle);
+						byte v2 = (byte)(PS | Define.FLAG_BREAK);
+						WriteByte(mem, v2, 0x100 + SP, ref cycle);
 						SP--;
-						Flag.I = 1;
-						Flag.D = 0;
-						PC = ReadByte(mem, 0xFFFE, ref cycle) | ReadByte(mem, 0xFFFF, ref cycle) << 8;
+						Flag.I = true;
+						Flag.D = false;
+
+						byte b0 = ReadByte(mem, 0xFFFE, ref cycle);
+						byte b1 = ReadByte(mem, 0xFFFF, ref cycle);
+						byte b2 = (byte)(b0 | b1);
+						PC = (ushort)(b2 << 8);
 #endif
-						printf("BREAK!! : %x\n", PC);
+						//printf("BREAK!! : %x\n", PC);
 					}
 					break;
 
@@ -1789,16 +1833,18 @@ public class Cpu
 						//PC = PopStackWord(mem, cycle);
 
 						SP++;
-						PS = ReadByte(mem, 0x100 + SP, ref cycle);
+						PS = ReadByte(mem, (ushort)(0x100 + SP), ref cycle);
 						SP++;
-						PC = ReadByte(mem, 0x100 + SP, ref cycle);
+						PC = ReadByte(mem, (ushort)(0x100 + SP), ref cycle);
 						SP++;
-						PC |= ReadByte(mem, 0x100 + SP, ref cycle) << 8;
+						//PC |= ReadByte(mem, (ushort)(0x100 + SP), ref cycle) << 8;
+						byte v = ReadByte(mem, (ushort)(0x100 + SP), ref cycle);
+						PC |=  (ushort)(v << 8);
 						cycle -= 5;
 					}
 					break;
 
-				case Define.Define.Define.NOP:
+				case Define.NOP:
 					cycle--;
 					break;
 
@@ -1926,11 +1972,21 @@ public class Cpu
 	{
 #if !USEOLD
 		byte oldA = A;
-		ushort Result = A + v + Flag.C;
+		ushort Result = (ushort)(A + v + (Flag.C ? 1 : 0));
+
 		// Decimal mode
+		// 		if (Flag.D)
+		// 			Result += ((((Result + 0x66) ^ A ^ v) >> 3) & 0x22) * 3;
+
+
+		ushort a = (ushort)(Result + 0x66);
+		a = (ushort)( ((a ^ A ^ v) >> 3) & 0x22 );
+		a = (ushort)(a * 3);
 		if (Flag.D)
-			Result += ((((Result + 0x66) ^ A ^ v) >> 3) & 0x22) * 3;
-		A = (Result & 0xFF);
+			Result += a;
+
+		A = (byte)(Result & 0x00FF);
+
 		SetZeroNegative(A);
 		SetCarryFlag(Result);
 		SetOverflow(oldA, A, v);
@@ -1950,7 +2006,8 @@ public class Cpu
 	void Execute_SBC(byte v)
 	{
 #if !USEOLD
-		Execute_ADC(~v);
+		byte v0 = (byte)~v;
+		Execute_ADC(v0);
 #else
 	v ^= 0xFF;
 	if (Flag.D)
@@ -1967,52 +2024,52 @@ public class Cpu
 
 	void Execute_CMP(byte v)
 	{
-		ushort t = A - v;
+		//ushort t = A - v;
 		// 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
 		// 	Flag.Z = A == v;					// Set if A = M
 		// 	Flag.C = A >= v;					// Set if A >= M
 
 		Flag.Z = ((A - v) & 0xFF) == 0;
-		Flag.N = ((A - v) & FLAG_NEGATIVE) != 0;
-		Flag.C = (A >= v) != 0;
+		Flag.N = ((A - v) & Define.FLAG_NEGATIVE) != 0;
+		Flag.C = (A >= v) != false;
 	}
 
 	void Execute_CPX(byte v)
 	{
-		ushort t = X - v;
+		//ushort t = X - v;
 		// 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
 		// 	Flag.Z = X == v;					// Set if X = M
 		// 	Flag.C = X >= v;					// Set if X >= M
 
 		Flag.Z = ((X - v) & 0xFF) == 0;
-		Flag.N = ((X - v) & FLAG_NEGATIVE) != 0;
-		Flag.C = (X >= v) != 0;
+		Flag.N = ((X - v) & Define.FLAG_NEGATIVE) != 0;
+		Flag.C = (X >= v) != false;
 	}
 
 	void Execute_CPY(byte v)
 	{
-		WORD t = Y - v;
+		//WORD t = Y - v;
 		// 	Flag.N = (t & FLAG_NEGATIVE) > 0;	// Set if bit 7 of the result is set
 		// 	Flag.Z = Y == v;					// Set if Y = M
 		// 	Flag.C = Y >= v;					// Set if Y >= M
 
 		Flag.Z = ((Y - v) & 0xFF) == 0;
-		Flag.N = ((Y - v) & FLAG_NEGATIVE) != 0;
-		Flag.C = (Y >= v) != 0;
+		Flag.N = ((Y - v) & Define.FLAG_NEGATIVE) != 0;
+		Flag.C = (Y >= v) != false;
 	}
 
 	void Execute_ASL(ref byte v, ref int cycle)
 	{
-		Flag.C = (v & FLAG_NEGATIVE) > 0;
-		v = v << 1;
+		Flag.C = (v & Define.FLAG_NEGATIVE) > 0;
+		v = (byte)(v << 1);
 		cycle--;
 		SetZeroNegative(v);
 	}
 
 	void Execute_LSR(ref byte v, ref int cycle)
 	{
-		Flag.C = (v & 0x01);
-		v = v >> 1;
+		Flag.C = Convert.ToBoolean(v & 0x01);
+		v = (byte)(v >> 1);
 		cycle--;
 		SetZeroNegative(v);
 	}
@@ -2027,8 +2084,8 @@ public class Cpu
 	void Execute_ROL(ref byte v, ref int cycle)
 	{
 		// 이전의 carry flag값을 Shift후의 0bit에 채워준다
-		BYTE oldcarry = Flag.C ? 0x01 : 0x00;
-		Flag.C = (v & FLAG_NEGATIVE) > 0;
+		byte oldcarry = (byte)(Flag.C ? 0x01 : 0x00);
+		Flag.C = (v & Define.FLAG_NEGATIVE) > 0;
 		v <<= 1;
 		v |= oldcarry;
 		cycle--;
@@ -2045,10 +2102,10 @@ public class Cpu
 	void Execute_ROR(ref byte v, ref int cycle)
 	{
 		// 최하비트가 1인가? -> 다음 캐리비트로 설정
-		byte oldcarry = (v & FLAG_CARRY) > 0;
-		v = v >> 1;
+		bool oldcarry = (v & Define.FLAG_CARRY) > 0;
+		v = (byte)(v >> 1);
 		// 이전 Carry가 1이면 NEGATIVE 채움
-		v |= (Flag.C ? FLAG_NEGATIVE : 0);
+		v |= (byte)((Flag.C ? Define.FLAG_NEGATIVE : 0));
 		cycle--;
 		Flag.C = oldcarry;
 		SetZeroNegative(v);
@@ -2057,16 +2114,16 @@ public class Cpu
 
 	void Execute_BRANCH(bool v, bool condition, Memory mem, ref int cycle)
 	{
-		SBYTE offset = (SBYTE)Fetch(mem, cycle);
+		sbyte offset = (sbyte)Fetch(mem, ref cycle);
 		if (v == condition)
 		{
 #if !USEOLD
 			// Page를 넘어가면 Cycle 증가
-			BYTE lo = PC & 0x00FF;
-			WORD t = lo + (SBYTE)offset;
+			byte lo = (byte)(PC & 0x00FF);
+			ushort t = (ushort)(lo + (sbyte)offset);
 			if (t > 0xFF) cycle--;
 
-			PC += (SBYTE)offset;
+			PC += (ushort)offset;
 			cycle--;
 #else
 		if (offset & FLAG_NEGATIVE)
