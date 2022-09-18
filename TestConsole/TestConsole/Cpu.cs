@@ -375,9 +375,9 @@ public class Cpu
         bool sign1 = ((v0 ^ v1) & Define.FLAG_NEGATIVE) > 0 ? true : false;       // 계산후 부호
 
         // Overflow는 같은 부호를 더했는데 다른 부호가 나오면 Overflow이다
-        SetFlag(Define.FLAG_OVERFLOW, (sign0 != sign1));
+        //SetFlag(Define.FLAG_OVERFLOW, (sign0 != sign1));
         //Flag.V = (sign0 != sign1);
-        //Flag.V = sign0 && sign1;
+        Flag.V = sign0 && sign1;
     }
 
     byte Fetch(Memory mem, ref int cycle)
@@ -474,8 +474,10 @@ public class Cpu
     }
 
 	long linecount = 0;
+	bool enableLog = false;
 
-    public int Run(Memory mem, ref int cycle)
+
+	public int Run(Memory mem, ref int cycle)
     {
         int CyclesRequested = cycle;
 		int prevcycle = cycle;
@@ -486,7 +488,6 @@ public class Cpu
             // 여기에서 cycle 하나 소모
             byte inst = Fetch(mem, ref cycle);
 			//lastInst = inst;
-			bool enableLog = false;
 
 // 			if (enableLog)
 //             {
@@ -1866,10 +1867,11 @@ public class Cpu
 						Flag.I = true;
 						Flag.D = false;
 
-						byte b0 = ReadByte(mem, 0xFFFE, ref cycle);
-						byte b1 = ReadByte(mem, 0xFFFF, ref cycle);
-						byte b2 = (byte)(b0 | b1);
-						PC = (ushort)(b2 << 8);
+						ushort b0 = ReadByte(mem, 0xFFFE, ref cycle);
+						ushort b1 = (ushort)(ReadByte(mem, 0xFFFF, ref cycle) << 8);
+						//byte b2 = (byte)(b0 | b1);
+						//PC = (ushort)(b2 << 8);
+						PC = (ushort)(b0 | b1);
 #endif
 						//printf("BREAK!! : %x\n", PC);
 					}
@@ -1909,6 +1911,12 @@ public class Cpu
 
 			tick += (ulong)(prevcycle - cycle);
 
+
+            if (linecount == 26764035)
+            {
+                enableLog = true;
+            }
+
             if (enableLog)
             {
                 //printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] SP:[%2X] ", A, X, Y, prevPC, SP);
@@ -1916,8 +1924,8 @@ public class Cpu
 				//printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
 				//    Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
 
-				Console.WriteLine("{0} : A:[{1:X}] X:[{2:X}] Y:[{3:X}] PC:[{4:X}] SP:[{5:X}] " +
-					"INST : [{6:X}] / C:[{7}] Z:[{8}] I:[{9}] D:[{10}] B:[{11}] U:[{12}] V:[{13}] N:[{14}]",
+				Console.WriteLine("{0} : A:[{1:X2}] X:[{2:X2}] Y:[{3:X2}] PC:[{4:X2}] SP:[{5:X2}] " +
+					"INST : [{6:X2}] / C:[{7}] Z:[{8}] I:[{9}] D:[{10}] B:[{11}] U:[{12}] V:[{13}] N:[{14}]",
 					linecount,
 					A, X, Y, prevPC, SP,
 					inst,
@@ -2185,7 +2193,7 @@ public class Cpu
 		sbyte offset = (sbyte)Fetch(mem, ref cycle);
 		if (v == condition)
 		{
-#if USEOLD
+#if !USEOLD
 			// Page를 넘어가면 Cycle 증가
 			byte lo = (byte)(PC & 0x00FF);
 			ushort t = (ushort)(lo + (sbyte)offset);
