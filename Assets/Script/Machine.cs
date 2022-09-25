@@ -69,12 +69,20 @@ public class Machine : MonoBehaviour
         {
             if (device.UpdateFloppyDisk() == false)
                 break;
-            cpu.Run(mem, 10000);
+
+            int c = 10000;
+            cpu.Run(mem, ref c);
         }
     }
 
     void Update()
     {
         
+    }
+
+    void FixedUpdate()
+    {
+        int p = 17050;
+        Run(ref p);
     }
 }
