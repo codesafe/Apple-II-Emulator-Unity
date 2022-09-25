@@ -4,8 +4,6 @@ using System.Collections.Generic;
 
 static class Define
 {
-
-
     public const ushort SCREENTEXT_X = 40;
     public const ushort SCREENTEXT_Y = 24;
     public const ushort SCREENSIZE_X = 280;
@@ -13,11 +11,13 @@ static class Define
 
     public const ushort STACK_ADDRESS = 0x0100;
 
+	public const byte STACK_POS = 0xFD;
+	public const ushort PC_START = 0xFFFC;
 
-    ///////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////
 
-    // Memory
-    public const ushort RAMSIZE = 0xC000;
+	// Memory
+	public const ushort RAMSIZE = 0xC000;
     public const ushort ROMSIZE = 0x3000;
     public const ushort ROMSTART = 0xD000;
     public const ushort SL6START = 0xC600;      // 
@@ -276,16 +276,85 @@ public class Cpu
     public byte X;
     public byte Y;
 
-    // Processor Status : Flag
-    public byte     PS;
+	// Processor Status : Flag
+	public byte _PS;
+	public byte     PS
+    {
+		get 
+		{
+			byte f = 0;
+			f |= (byte)(Flag.C ? 1 : 0);
+			f |= (byte)( (Flag.Z ? 1 : 0) << 1 );
+			f |= (byte)( (Flag.I ? 1 : 0) << 2 );
+			f |= (byte)((Flag.D ? 1 : 0) << 3);
+			f |= (byte)((Flag.B ? 1 : 0) << 4);
+			f |= (byte)((Flag.Unused ? 1 : 0) << 5);
+			f |= (byte)((Flag.V ? 1 : 0) << 6);
+			f |= (byte)((Flag.N ? 1 : 0) << 7);
+
+			_PS = f;
+			return _PS; 
+		}
+
+		set
+        {
+			_PS = value;
+
+			Flag.C = (_PS & Define.FLAG_CARRY) > 0 ? true : false;
+			Flag.Z = (_PS & Define.FLAG_ZERO) > 0 ? true : false;
+			Flag.I = (_PS & Define.FLAG_INTERRUPT_DISABLE) > 0 ? true : false;
+			Flag.D = (_PS & Define.FLAG_DECIMAL_MODE) > 0 ? true : false;
+			Flag.B = (_PS & Define.FLAG_BREAK) > 0 ? true : false;
+			Flag.Unused = (_PS & Define.FLAG_UNUSED) > 0 ? true : false;
+			Flag.V = (_PS & Define.FLAG_OVERFLOW) > 0 ? true : false;
+			Flag.N = (_PS & Define.FLAG_NEGATIVE) > 0 ? true : false;
+		}
+    }
     public byte     SP;     // Stack Pointer
     public ushort   PC;     // program control
 
 
-	ulong tick = 0;
+	public ulong tick = 0;
 
+    // reset all register
+    public void Reset()
+    {
+        A = 0;
+        X = 0;
+        Y = 0;
+        PS = 0;             // processor status (flags)
+        Flag.I = true;
+        Flag.Unused = true;
 
-	public void SetFlag(byte flag, bool set)
+        SP = Define.STACK_POS; // Stack pointer
+        PC = Define.PC_START;      // program control
+    }
+
+	public void Reset(Memory mem)
+    {
+        A = 0;
+        X = 0;
+        Y = 0;
+        
+        PS = (byte)((PS | Define.FLAG_INTERRUPT_DISABLE) & ~Define.FLAG_DECIMAL_MODE);
+		SP = Define.STACK_POS; // Stack pointer
+
+		// ROM 로드후 정해짐
+		PC = (ushort)(mem.ReadByte(0xFFFC) | (ushort)(mem.ReadByte(0xFFFD) << 8));
+    }
+
+    public void Reboot(Memory mem)
+    {
+        mem.WriteByte(0x3F4, 0);
+        PC = (ushort)(mem.ReadByte(0xFFFC) | (ushort)(mem.ReadByte(0xFFFD) << 8));
+        SP = 0xFD;
+        Flag.I = true;
+        Flag.Unused = true;
+
+        mem.ResetRam();
+    }
+
+    public void SetFlag(byte flag, bool set)
     {
         if (set)
             PS |= flag;
@@ -301,17 +370,17 @@ public class Cpu
 
     public void SetZeroNegative(byte Register)
     {
-        SetFlag(Define.FLAG_ZERO, Register == 0);
-        //Flag.Z = (Register == 0);
+        //SetFlag(Define.FLAG_ZERO, Register == 0);
+        Flag.Z = (Register == 0);
 
-        SetFlag(Define.FLAG_NEGATIVE, (Register & Define.FLAG_NEGATIVE) > 0 ? true : false);
-        //Flag.N = (Register & Define.FLAG_NEGATIVE) > 0;
+        //SetFlag(Define.FLAG_NEGATIVE, (Register & Define.FLAG_NEGATIVE) > 0 ? true : false);
+        Flag.N = (Register & Define.FLAG_NEGATIVE) > 0;
     }
 
     public void SetCarryFlag(ushort value)
     {
-        //Flag.C = (value & 0xFF00) > 0;
-        SetFlag(Define.FLAG_CARRY, (value & 0xFF00) > 0);
+        Flag.C = (value & 0xFF00) > 0;
+        //SetFlag(Define.FLAG_CARRY, (value & 0xFF00) > 0);
     }
 
 //     public void SetCarryFlagNegative(ushort value)
@@ -327,9 +396,9 @@ public class Cpu
         bool sign1 = ((v0 ^ v1) & Define.FLAG_NEGATIVE) > 0 ? true : false;       // 계산후 부호
 
         // Overflow는 같은 부호를 더했는데 다른 부호가 나오면 Overflow이다
-        SetFlag(Define.FLAG_OVERFLOW, (sign0 != sign1));
+        //SetFlag(Define.FLAG_OVERFLOW, (sign0 != sign1));
         //Flag.V = (sign0 != sign1);
-        //Flag.V = sign0 && sign1;
+        Flag.V = sign0 && sign1;
     }
 
     byte Fetch(Memory mem, ref int cycle)
@@ -425,8 +494,11 @@ public class Cpu
         return popushort;
     }
 
+	long linecount = 0;
+	bool enableLog = false;
 
-    int Run(Memory mem, ref int cycle)
+
+	public int Run(Memory mem, ref int cycle)
     {
         int CyclesRequested = cycle;
 		int prevcycle = cycle;
@@ -436,13 +508,14 @@ public class Cpu
             ushort prevPC = PC;
             // 여기에서 cycle 하나 소모
             byte inst = Fetch(mem, ref cycle);
-            //lastInst = inst;
+			//lastInst = inst;
 
-//             if (enableLog)
+// 			if (enableLog)
 //             {
-//                 printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
-//                 printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
-//                     Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
+// 				Console.WriteLine("A:[{0}] X:[{1}] Y:[{2}] PC:[{3}] ", A, X, Y, prevPC);
+// 				//printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] ", A, X, Y, prevPC);
+//                 //printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
+//                 //    Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
 //             }
 
             switch (inst)
@@ -1815,10 +1888,11 @@ public class Cpu
 						Flag.I = true;
 						Flag.D = false;
 
-						byte b0 = ReadByte(mem, 0xFFFE, ref cycle);
-						byte b1 = ReadByte(mem, 0xFFFF, ref cycle);
-						byte b2 = (byte)(b0 | b1);
-						PC = (ushort)(b2 << 8);
+						ushort b0 = ReadByte(mem, 0xFFFE, ref cycle);
+						ushort b1 = (ushort)(ReadByte(mem, 0xFFFF, ref cycle) << 8);
+						//byte b2 = (byte)(b0 | b1);
+						//PC = (ushort)(b2 << 8);
+						PC = (ushort)(b0 | b1);
 #endif
 						//printf("BREAK!! : %x\n", PC);
 					}
@@ -1857,6 +1931,29 @@ public class Cpu
 			}
 
 			tick += (ulong)(prevcycle - cycle);
+
+
+            if (linecount == 26764035)
+            {
+                enableLog = true;
+            }
+
+            if (enableLog)
+            {
+                //printf("A:[%2X] X:[%2X] Y:[%2X] PC:[%4X] SP:[%2X] ", A, X, Y, prevPC, SP);
+				//Console.WriteLine("A:[{0:X}] X:[{1:X}] Y:[{2:X}] PC:[{3:X}] ", A, X, Y, prevPC);
+				//printf("INST : [%2X] / C:[%d] Z:[%d] I:[%d] D:[%d] B:[%d] U:[%d] V:[%d] N:[%d]\n", inst,
+				//    Flag.C, Flag.Z, Flag.I, Flag.D, Flag.B, Flag.Unused, Flag.V, Flag.N);
+
+				Console.WriteLine("{0} : A:[{1:X2}] X:[{2:X2}] Y:[{3:X2}] PC:[{4:X2}] SP:[{5:X2}] " +
+					"INST : [{6:X2}] / C:[{7}] Z:[{8}] I:[{9}] D:[{10}] B:[{11}] U:[{12}] V:[{13}] N:[{14}]",
+					linecount,
+					A, X, Y, prevPC, SP,
+					inst,
+					Flag.C ? 1 : 0, Flag.Z ? 1 : 0, Flag.I ? 1 : 0, Flag.D ? 1 : 0, Flag.B ? 1 : 0, Flag.Unused ? 1 : 0, Flag.V ? 1 : 0, Flag.N ? 1 : 0);
+			}
+
+			linecount++;
 
 		}
 
@@ -2126,12 +2223,15 @@ public class Cpu
 			PC += (ushort)offset;
 			cycle--;
 #else
-		if (offset & FLAG_NEGATIVE)
-			offset |= 0xFF00;  // jump backward
-		if (((PC & 0xFF) + offset) & 0xFF00)  // page crossing
+		if ( (offset & Define.FLAG_NEGATIVE) != 0)
+			offset = (sbyte)((ushort)offset | 0xFF00);  // jump backward
+
+		ushort a = (ushort)( ((ushort)(PC & 0x00FF)) + offset);
+		if ( (a & 0xFF00) != 0)  // page crossing
 			cycle--;
-		PC += offset;
-		cycle--;
+
+			PC += (ushort)offset;
+			cycle--;
 #endif
 		}
 	}

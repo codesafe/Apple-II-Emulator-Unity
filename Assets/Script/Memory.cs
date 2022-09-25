@@ -17,7 +17,7 @@ public class Memory
     public byte[] bk2 = new byte[Define.BK2SIZE];  // bank 2 of Language Card 4K in $D000-$DFFF
     public byte[] sl6 = new byte[Define.SL6SIZE];  // P5A disk ][ PROM in slot 6
 
-    Memory()
+    public Memory()
     {
         Reset();
     }
@@ -36,8 +36,12 @@ public class Memory
         Array.Clear(sl6, 0, Define.SL6SIZE);
     }
 
+    public void ResetRam()
+    {
+        Array.Clear(ram, 0, Define.RAMSIZE);
+    }
 
-    public byte ReadByte(int address)
+    public byte ReadByte(ushort address)
     {
         // RAM
         if (address < Define.RAMSIZE)
@@ -92,10 +96,10 @@ public class Memory
         }
     }
 
-    public ushort ReadWord(int addr)
+    public ushort ReadWord(ushort addr)
     {
         byte m0 = ReadByte(addr);
-        byte m1 = ReadByte(addr + 1);
+        byte m1 = ReadByte((ushort)(addr + 1));
         ushort w = (ushort)((m1 << 8) | m0);
         return w;
     }
