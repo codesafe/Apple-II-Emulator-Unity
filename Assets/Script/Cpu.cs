@@ -14,6 +14,20 @@ static class Define
 	public const byte STACK_POS = 0xFD;
 	public const ushort PC_START = 0xFFFC;
 
+	// display mode
+	public const byte TEXT_MODE = 0;
+	public const byte LORES_MODE = 1;
+	public const byte LORES_MIX_MODE = 2;
+	public const byte HIRES_MODE = 3;
+	public const byte HIRES_MIX_MODE = 4;
+
+	public const byte FONT_X = 7;
+	public const byte FONT_Y = 8;
+	public const byte FONT_NUM = 128;
+	public const byte FONT_NORMAL = 0;
+	public const byte FONT_INVERSE = 1;
+	public const byte FONT_FLASH = 2;
+
 	///////////////////////////////////////////////////////////////////////////////////////
 
 	// Memory

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 // two disk ][ drive units
 public class FloppyDrive
@@ -55,12 +56,21 @@ public class Screen
     }
 }
 
+struct _RECT
+{
+    public int x, y, width, height;
+};
+
 public class Device
 {
     public Cpu cpu = null;
+	public Memory mem = null;
+	public Display display;
+	public Font font;
 
-    // DISK
-    FloppyDrive[] disk = new FloppyDrive[2];
+	///////////////////////////////////////////////////////// FDD DISK
+
+	FloppyDrive[] disk = new FloppyDrive[2];
     byte updatedrive;
 
     bool [,] phases = new bool[2,4];
@@ -80,33 +90,31 @@ public class Device
 
     byte keyboard;
 
-    /////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////// SOUND
 
     bool silence;
     int volume;
     bool speaker;
     long speakerLastTick;
 
-    /////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////// DISPLAY
 
     bool textMode;
     bool mixedMode;
     bool hires_Mode;
-    byte videoPage;
+    ushort videoPage;
     ushort videoAddress;
 
-    //_RECT pixelGR;
+	_RECT pixelGR = new _RECT();
 
     int [,] LoResCache = new int [24, 40];
 	int [,] HiResCache = new int[192, 40];
 	byte [,] previousBit = new byte[192, 40];
 	byte flashCycle;
 
-    /////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////// 패들정보
 
-
-    // 패들정보
-    float [] GCP = new float[2];
+	float[] GCP = new float[2];
     float [] GCC = new float[2];
 	int [] GCD = new int[2];
 	int [] GCA = new int[2];
@@ -122,15 +130,16 @@ public class Device
         disk[1].Reset();
     }
 
-    public void Create(Cpu cpu)
+    public void Create(Cpu cpu, Memory mem)
     {
         //font.Create();
         zoomscale = 3;
 
         this.cpu = cpu;
-
-    }
-
+		this.mem = mem;
+		display = new Display();
+		font = new Font();
+	}
 
     public void Reset()
     {
@@ -142,8 +151,11 @@ public class Device
         colorMonitor = true;
         keyboard = 0;
 
-        //pixelGR = { 0, 0, 7, 4 };
-
+		pixelGR.x = 0;
+		pixelGR.y = 0;
+		pixelGR.width = 7;
+		pixelGR.height = 4;
+		
         silence = false;
         speaker = false;
         speakerLastTick = 0;
@@ -231,46 +243,46 @@ public class Device
 
 			case 0xC050:
 				textMode = false;
-				//printf("Text Mode Off\n");
+				Debug.Log("Text Mode Off\n");
 				break;
 			// Text
 			case 0xC051:
 				textMode = true;
-				//printf("Text Mode On\n");
+				Debug.Log("Text Mode On\n");
 				break;
 
 			// Mixed off
 			case 0xC052:
 				mixedMode = false;
-				//printf("Mixed Mode Off\n");
+				Debug.Log("Mixed Mode Off\n");
 				break;
 
 			// Mixed on
 			case 0xC053:
 				mixedMode = true;
-				//printf("Mixed Mode On\n");
+				Debug.Log("Mixed Mode On\n");
 				break;
 
 			// Page 1
 			case 0xC054:
 				videoPage = 1;
-				//printf("Video Page 1\n");
+				Debug.Log("Video Page 1\n");
 				break;
 			// Page 2
 			case 0xC055:
 				videoPage = 2;
-				//printf("Video Page 2\n");
+				Debug.Log("Video Page 2\n");
 				break;
 
 			// HiRes off
 			case 0xC056:
 				hires_Mode = false;
-				//printf("HIRES Mode Off\n");
+				Debug.Log("HIRES Mode Off\n");
 				break;
 			// HiRes on
 			case 0xC057:
 				hires_Mode = true;
-				//printf("HIRES Mode On\n");
+				Debug.Log("HIRES Mode On\n");
 				break;
 
 			/////////////////////////////////////////////////////////////////////////////////	Joy Paddle ?
@@ -358,13 +370,13 @@ public class Device
 			case 0xCFFF:
 			case 0xC0E8:
 				disk[currentDrive].motorOn = false;
-				//printf("--> DISK MOTOR OFF\n");
+				Debug.Log("--> DISK MOTOR OFF\n");
 				break;
 
 			// MOTOR ON
 			case 0xC0E9:
 				disk[currentDrive].motorOn = true;
-				//printf("--> DISK MOTOR ON\n");
+				Debug.Log("--> DISK MOTOR ON\n");
 				break;
 
 			// DRIVE 0
@@ -650,7 +662,7 @@ public class Device
 			{
 				GCD[0] = -1; GCA[0] = 1;
 				gamepad.axis[0] = true;
-				//printf("left\n");
+				Debug.Log("left\n");
 			}
 			else if (IsKeyUp(KEY_LEFT) && gamepad.axis[0])
 			{
@@ -662,7 +674,7 @@ public class Device
 			{
 				GCD[0] = 1;  GCA[0] = 1;
 				gamepad.axis[1] = true;
-				//printf("right\n");
+				Debug.Log("right\n");
 			}
 			else if (IsKeyUp(KEY_RIGHT) && gamepad.axis[1])
 			{
@@ -710,6 +722,231 @@ public class Device
             return false;
         else
             return true;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    int GetScreenMode()
+    {
+        if (mixedMode == false)
+        {
+            if (textMode == false && hires_Mode)
+                return Define.HIRES_MODE;
+
+            if (textMode == false && hires_Mode == false)
+                return Define.LORES_MODE;
+
+            if (textMode == true && hires_Mode == false)
+                return Define.TEXT_MODE;
+        }
+        else
+        {
+            if (hires_Mode)
+                return Define.HIRES_MIX_MODE;
+
+            if (hires_Mode == false)
+                return Define.LORES_MIX_MODE;
+        }
+
+        return Define.TEXT_MODE;
+    }
+
+
+    void DrawPoint(int x, int y, byte r, byte g, byte b)
+    {
+        Color32 color = new Color32();
+        if (colorMonitor)
+        {
+            color.r = r; 
+			color.g = g; 
+			color.b = b; 
+			color.a = 0xff;
+        }
+        else
+        {
+            float grayscale = (0.299f * r) + (0.587f * g) + (0.114f * b);
+            color.r = 0; 
+			color.g = (byte)grayscale; 
+			color.b = 0; 
+			color.a = 0xff;
+        }
+
+		display.Draw(x, y, color);
+    }
+
+    void DrawRect(_RECT rect, byte r, byte g, byte b)
+    {
+        for (int y = 0; y < (int)rect.height; y++)
+            for (int x = 0; x < (int)rect.width; x++)
+            {
+                DrawPoint((int)rect.x + x, (int)rect.y + y, r, g, b);
+            }
+    }
+
+    public void Render(int frame)
+    {
+		int screenmode = GetScreenMode();
+
+        // video Page에 따라 Address가 달라짐
+        // $400, $800, $2000, $4000
+        if (screenmode == Define.LORES_MODE || screenmode == Define.HIRES_MODE ||
+            screenmode == Define.LORES_MIX_MODE || screenmode == Define.HIRES_MIX_MODE)
+        {
+            // LoRes 저해상도
+            if (hires_Mode == false)
+            {
+                videoAddress = (ushort)(videoPage * 0x0400);
+                byte glyph;
+				byte colorIdx = 0;
+
+                for (int col = 0; col < 40; col++)
+                {
+                    pixelGR.x = col * 7;
+                    // Mixmode이면 하단 4라인은 Text용
+                    for (int line = 0; line < (mixedMode ? 20 : 24); line++)
+                    {
+                        pixelGR.y = line * 8;
+                        glyph = mem.ReadByte((ushort)(videoAddress + Rom.offsetGR[line] + col));
+
+                        if (LoResCache[line,col] != glyph || ! (flashCycle == 1))
+                        {
+                            LoResCache[line,col] = glyph;
+
+                            colorIdx = (byte)(glyph & 0x0F);
+                            DrawRect(pixelGR, Rom.color[colorIdx,0], Rom.color[colorIdx,1], Rom.color[colorIdx,2]);
+
+                            pixelGR.y += 4;
+                            colorIdx = (byte)((glyph & 0xF0) >> 4);
+                            DrawRect(pixelGR, Rom.color[colorIdx,0], Rom.color[colorIdx,1], Rom.color[colorIdx,2]);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // highRes 고해상도
+                ushort word;
+				byte [] bits = new byte[16];
+				byte bit, pbit, colorSet, even;
+
+                // PAGE is 1 or 2
+                videoAddress = (ushort)(videoPage * 0x2000);
+                byte colorIdx = 0;
+
+                // Mixmode이면 하단 4라인은 Text용
+                for (int line = 0; line < (mixedMode ? 160 : 192); line++)
+                {
+                    // for every 7 horizontal dots
+                    for (int col = 0; col < 40; col += 2)
+                    {
+                        int x = col * 7;
+                        even = 0;
+
+						ushort add = (ushort)(videoAddress + Rom.offsetHGR[line] + col + 1);
+						word = (ushort)(mem.ReadByte(add) << 8);
+						word += mem.ReadByte((ushort)(videoAddress + Rom.offsetHGR[line] + col));
+
+                        if (HiResCache[line,col] != word || !(flashCycle==1))
+                        {
+                            for (bit = 0; bit < 16; bit++)
+                                bits[bit] = (byte)((word >> bit) & 1);
+
+                            colorSet = (byte)(bits[7] * 4);
+                            pbit = previousBit[line, col];
+                            bit = 0;
+
+                            while (bit < 15)
+                            {
+                                if (bit == 7)
+                                {
+                                    colorSet = (byte)(bits[15] * 4);
+                                    bit++;
+                                }
+                                colorIdx = (byte)(even + colorSet + (bits[bit] << 1) + (pbit));
+
+                                DrawPoint(x++, line, Rom.hcolor[colorIdx, 0], Rom.hcolor[colorIdx, 1], Rom.hcolor[colorIdx, 2]);
+                                pbit = bits[bit++];
+                                even = (byte)(even == 1 ? 0 : 8);
+                            }
+
+                            HiResCache[line, col] = word;
+                            if ((col < 37) && (previousBit[line, col + 2] != pbit))
+                            {
+                                previousBit[line, col + 2] = pbit;
+                                HiResCache[line, col + 2] = -1;
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+
+        // TEXT는 TEXT Only 그리고 Mixed에 모두 출력되어야 함
+        if (screenmode == Define.TEXT_MODE || screenmode == Define.LORES_MIX_MODE || screenmode == Define.HIRES_MIX_MODE)
+        {
+            // 		if(screenmode == TEXT_MODE)
+            // 			ClearScreen();
+
+            videoAddress = (ushort)(videoPage * 0x0400);
+
+            // Text or Mixed
+            // Font 크기 7X8 / 40x20 글자
+            int linelimit = textMode ? 0 : 20;
+
+            for (int col = 0; col < Define.SCREENTEXT_X; col++)
+            {
+                for (int line = linelimit; line < Define.SCREENTEXT_Y; line++)
+                {
+                    // read video memory
+                    byte glyph = mem.ReadByte((ushort)(videoAddress + Rom.offsetGR[line] + col));
+
+                    int fontattr = 0;
+                    if (glyph > 0x7F)
+                        fontattr = Define.FONT_NORMAL;
+                    else if (glyph < 0x40)
+                        fontattr = Define.FONT_INVERSE;
+                    else
+                        fontattr = Define.FONT_FLASH;
+
+                    glyph &= 0x7F; // unset bit 7
+                    if (glyph > 0x5F) glyph &= 0x3F; // shifts to match
+                    if (glyph < 0x20) glyph |= 0x40; // the ASCII codes
+
+                    if (fontattr == Define.FONT_NORMAL || (fontattr == Define.FONT_FLASH && frame < 15))
+                    {
+                        font.RenderFont(display, glyph, col * Define.FONT_X, line * Define.FONT_Y, false);
+                    }
+                    else
+                    {
+                        font.RenderFont(display, glyph, col * Define.FONT_X, line * Define.FONT_Y, true);
+                    }
+                }
+            }
+        }
+
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        // Render Backbuffer
+//         UnloadTexture(renderTexture);
+//         renderTexture = LoadTextureFromImage(renderImage);
+// 
+//         Vector2 pos;
+//         pos.x = 300;
+//         pos.y = 10;
+//         DrawTextureEx(renderTexture, pos, 0, zoomscale, WHITE);
+// 
+//         const int gap = 8;
+//         Rectangle rec;
+//         rec.x = pos.x - gap;
+//         rec.y = pos.y - gap;
+//         rec.width = (float)(SCREENSIZE_X * zoomscale + (gap * 2));
+//         rec.height = (float)(SCREENSIZE_Y * zoomscale + (gap * 2));
+//         DrawRectangleLinesEx(rec, 2, GRAY);
+
+        if (++flashCycle == 30)
+            flashCycle = 0;
     }
 
 }

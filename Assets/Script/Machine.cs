@@ -2,12 +2,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Machine : MonoBehaviour
 {
-    Memory mem = new Memory();
-    Device device = new Device();
-    Cpu cpu = new Cpu();
+    [SerializeField] RawImage screen;
+
+
+    public Memory mem = new Memory();
+    public Device device = new Device();
+    public Cpu cpu = new Cpu();
 
     void Start()
     {
@@ -20,7 +24,8 @@ public class Machine : MonoBehaviour
         mem.WriteByte(0x4D, 0xAA);   // Joust crashes if this memory location equals zero
         mem.WriteByte(0xD0, 0xAA);   // Planetoids won't work if this memory location equals zero
 
-        device.Create(cpu);
+        device.Create(cpu, mem);
+
         Booting();
     }
 
@@ -75,9 +80,14 @@ public class Machine : MonoBehaviour
         }
     }
 
+    void RefreshDisplay()
+    {
+
+    }
+
     void Update()
     {
-        
+        RefreshDisplay();
     }
 
     void FixedUpdate()
