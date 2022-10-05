@@ -6,22 +6,15 @@ using UnityEngine;
 // two disk ][ drive units
 public class FloppyDrive
 {
-	// the full disk image pathname
 	public byte[] filename = new byte[400];
-	// based on the image file attributes
 	public bool readOnly;
-	// nibblelized disk image
 	public byte[] data = new byte[232960];
-	// motor status
 	public bool motorOn;
-	// writes to file are not implemented
 	public bool writeMode;
-	// current track position
 	public byte track;
-	// ptr to nibble under head position
 	public ushort nibble;
 
-    public void Reset()
+	public void Reset()
     {
         Array.Clear(filename, 0, 400);
         readOnly = false;
@@ -126,7 +119,12 @@ public class Device
 
 	public void InsetFloppy()
     {
-        disk[0].Reset();
+		if (disk[0] == null)
+			disk[0] = new FloppyDrive();
+		if (disk[1] == null)
+			disk[1] = new FloppyDrive();
+
+		disk[0].Reset();
         disk[1].Reset();
     }
 

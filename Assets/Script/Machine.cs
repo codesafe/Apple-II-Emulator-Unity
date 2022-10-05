@@ -8,10 +8,11 @@ public class Machine : MonoBehaviour
 {
     [SerializeField] RawImage screen;
 
-
     public Memory mem = new Memory();
     public Device device = new Device();
     public Cpu cpu = new Cpu();
+
+    bool appstarted = false;
 
     void Start()
     {
@@ -27,6 +28,8 @@ public class Machine : MonoBehaviour
         device.Create(cpu, mem);
 
         Booting();
+
+        appstarted = true;
     }
 
     void LoadRom()
@@ -82,17 +85,22 @@ public class Machine : MonoBehaviour
 
     void RefreshDisplay()
     {
-
+        int frame = 0;
+        device.Render(frame);
     }
 
     void Update()
     {
-        RefreshDisplay();
+        if( appstarted )
+            RefreshDisplay();
     }
 
     void FixedUpdate()
     {
-        int p = 17050;
-        Run(ref p);
+        if (appstarted)
+        {
+            int p = 17050;
+            Run(ref p);
+        }
     }
 }
