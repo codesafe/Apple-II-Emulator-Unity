@@ -17,6 +17,8 @@ public class Machine : MonoBehaviour
     void Start()
     {
         mem.Reset();
+        mem.SetDevice(device);
+        device.Reset();
         device.InsetFloppy();
 
         mem.WriteByte(0x3F4, 0);
@@ -26,6 +28,7 @@ public class Machine : MonoBehaviour
         mem.WriteByte(0xD0, 0xAA);   // Planetoids won't work if this memory location equals zero
 
         device.Create(cpu, mem);
+        screen.texture = device.display.mainTexture;
 
         Booting();
 
@@ -36,6 +39,10 @@ public class Machine : MonoBehaviour
     {
         Array.Copy(Rom.appleIIrom, mem.rom, 12288);
         Array.Copy(Rom.diskII, mem.sl6, 256);
+
+        //device.InsertFloppy("DOS3.3", 0);
+        device.InsertFloppy("LodeRunner", 0);
+        
     }
 
     bool Booting()
@@ -78,15 +85,18 @@ public class Machine : MonoBehaviour
             if (device.UpdateFloppyDisk() == false)
                 break;
 
-            int c = 10000;
+            int c = 100000;
             cpu.Run(mem, ref c);
         }
     }
 
+    int frame = 0;
     void RefreshDisplay()
     {
-        int frame = 0;
         device.Render(frame);
+
+        if (frame++ > Define.TARGET_FRAME)
+            frame = 0;
     }
 
     void Update()

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -130,13 +131,15 @@ public class Device
 
     public void Create(Cpu cpu, Memory mem)
     {
-        //font.Create();
         zoomscale = 3;
 
         this.cpu = cpu;
 		this.mem = mem;
 		display = new Display();
 		font = new Font();
+		font.Create();
+
+		GameManager.Instance.hitKBD = KeyBoardCallback;
 	}
 
     public void Reset()
@@ -214,7 +217,7 @@ public class Device
         flashCycle = 0;
     }
 
-    byte SoftSwitch(Memory mem, ushort address, byte value, bool WRT)
+    public byte SoftSwitch(Memory mem, ushort address, byte value, bool WRT)
     {
 		switch (address)
 		{
@@ -368,13 +371,13 @@ public class Device
 			case 0xCFFF:
 			case 0xC0E8:
 				disk[currentDrive].motorOn = false;
-				Debug.Log("--> DISK MOTOR OFF\n");
+				//Debug.Log("--> DISK MOTOR OFF\n");
 				break;
 
 			// MOTOR ON
 			case 0xC0E9:
 				disk[currentDrive].motorOn = true;
-				Debug.Log("--> DISK MOTOR ON\n");
+				//Debug.Log("--> DISK MOTOR ON\n");
 				break;
 
 			// DRIVE 0
@@ -518,6 +521,20 @@ public class Device
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	// Apple Disk II 
+	public bool InsertFloppy(string filename, int drv)
+	{
+		TextAsset data = Resources.Load(filename) as TextAsset;
+		Stream st = new MemoryStream(data.bytes);
+		BinaryReader reader = new BinaryReader(st);
+		disk[drv].data = reader.ReadBytes(232960);
+		reader.Close();
+
+		disk[drv].readOnly = true;
+
+		return true;
+	}
+
 	void stepMotor(ushort address)
     {
         address &= 7;
@@ -546,80 +563,123 @@ public class Device
 
     void setDrv(int drv)
     {
-        disk[drv].motorOn = disk[drv == 0 ? 1 : 0].motorOn || disk[drv].motorOn;
-        disk[drv == 0 ? 1 : 0].motorOn = false;
+        disk[ drv ].motorOn = disk[drv == 0 ? 1 : 0].motorOn || disk[drv].motorOn;
+        disk[ drv == 0 ? 1 : 0 ].motorOn = false;
         currentDrive = drv;
     }
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	private string lastKbdLetter = "NONE";
+
+	void KeyBoardCallback(string letter)
+    {
+		lastKbdLetter = letter;
+		Debug.Log($"Letter : {lastKbdLetter}");
+	}
+
 	void UpdateKeyBoard()
 	{
-#if false
-		int key = GetKeyPressed();
-		bool shift = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+		if (lastKbdLetter == "NONE") return;
 
-		switch (key)
+		switch (lastKbdLetter)
 		{
-			case KEY_A: keyboard = 0xC1; break;
-			case KEY_B: keyboard = 0xC2; break;
-			case KEY_C: keyboard = 0xC3; break;
-			case KEY_D: keyboard = 0xC4; break;
-			case KEY_E: keyboard = 0xC5; break;
-			case KEY_F: keyboard = 0xC6; break;
-			case KEY_G: keyboard = 0xC7; break;
-			case KEY_H: keyboard = 0xC8; break;
-			case KEY_I: keyboard = 0xC9; break;
-			case KEY_J: keyboard = 0xCA; break;
-			case KEY_K: keyboard = 0xCB; break;
-			case KEY_L: keyboard = 0xCC; break;
-			case KEY_M: keyboard = 0xCD; break;
-			case KEY_N: keyboard = 0xCE; break;
-			case KEY_O: keyboard = 0xCF; break;
-			case KEY_P: keyboard = 0xD0; break;
-			case KEY_Q: keyboard = 0xD1; break;
-			case KEY_R: keyboard = 0xD2; break;
-			case KEY_S: keyboard = 0xD3; break;
-			case KEY_T: keyboard = 0xD4; break;
-			case KEY_U: keyboard = 0xD5; break;
-			case KEY_V: keyboard = 0xD6; break;
-			case KEY_W: keyboard = 0xD7; break;
-			case KEY_X: keyboard = 0xD8; break;
-			case KEY_Y: keyboard = 0xD9; break;
-			case KEY_Z: keyboard = 0xDA; break;
+			case "A": keyboard = 0xC1; break;
+			case "B": keyboard = 0xC2; break;
+			case "C": keyboard = 0xC3; break;
+			case "D": keyboard = 0xC4; break;
+			case "E": keyboard = 0xC5; break;
+			case "F": keyboard = 0xC6; break;
+			case "G": keyboard = 0xC7; break;
+			case "H": keyboard = 0xC8; break;
+			case "I": keyboard = 0xC9; break;
+			case "J": keyboard = 0xCA; break;
+			case "K": keyboard = 0xCB; break;
+			case "L": keyboard = 0xCC; break;
+			case "M": keyboard = 0xCD; break;
+			case "N": keyboard = 0xCE; break;
+			case "O": keyboard = 0xCF; break;
+			case "P": keyboard = 0xD0; break;
+			case "Q": keyboard = 0xD1; break;
+			case "R": keyboard = 0xD2; break;
+			case "S": keyboard = 0xD3; break;
+			case "T": keyboard = 0xD4; break;
+			case "U": keyboard = 0xD5; break;
+			case "V": keyboard = 0xD6; break;
+			case "W": keyboard = 0xD7; break;
+			case "X": keyboard = 0xD8; break;
+			case "Y": keyboard = 0xD9; break;
+			case "Z": keyboard = 0xDA; break;
 
-			case KEY_ZERO: keyboard = shift ? 0xA9 : 0xB0; break;             // 0 )
-			case KEY_ONE: keyboard = shift ? 0xA1 : 0xB1; break;             // 1 !
-			case KEY_TWO: keyboard = shift ? 0xC0 : 0xB2; break;             // 2 @
-			case KEY_THREE: keyboard = shift ? 0xA3 : 0xB3; break;             // 3 #
-			case KEY_FOUR: keyboard = shift ? 0xA4 : 0xB4; break;             // 4 $
-			case KEY_FIVE: keyboard = shift ? 0xA5 : 0xB5; break;             // 5 %
-			case KEY_SIX: keyboard = shift ? 0xDE : 0xB6; break;             // 6 ^
-			case KEY_SEVEN: keyboard = shift ? 0xA6 : 0xB7; break;             // 7 &
-			case KEY_EIGHT: keyboard = shift ? 0xAA : 0xB8; break;             // 8 *
-			case KEY_NINE: keyboard = shift ? 0xA8 : 0xB9; break;             // 9 (
+			case ")": keyboard = 0xA9; break;             // 0 )
+			case "0": keyboard = 0xB0; break;             // 0 )
+
+			case "!": keyboard = 0xA1; break;             // 1 !
+			case "1": keyboard = 0xB1; break;             // 1 !
+
+			case "@": keyboard = 0xC0; break;             // 2 @
+			case "2": keyboard = 0xB2; break;             // 2 @
+
+			case "#": keyboard = 0xA3; break;             // 3 #
+			case "3": keyboard = 0xB3; break;             // 3 #
+
+			case "$": keyboard = 0xA4; break;             // 4 $
+			case "4": keyboard = 0xB4; break;             // 4 $
+
+			case "%": keyboard = 0xA5; break;             // 5 %
+			case "5": keyboard = 0xB5; break;             // 5 %
+
+			case "^": keyboard = 0xDE; break;             // 6 ^
+			case "6": keyboard = 0xB6; break;             // 6 ^
+
+			case "&": keyboard = 0xA6; break;             // 7 &
+			case "7": keyboard = 0xB7; break;             // 7 &
+
+			case "*": keyboard = 0xAA; break;             // 8 *
+			case "8": keyboard = 0xB8; break;             // 8 *
+
+			case "(": keyboard = 0xA8; break;             // 9 (
+			case "9": keyboard = 0xB9; break;             // 9 (
 
 
-			case KEY_LEFT_BRACKET: keyboard = shift ? 0x9B : 0xDB; break;   // [ {
-			case KEY_BACKSLASH: keyboard = shift ? 0x9C : 0xDC; break;   // \ |
-			case KEY_RIGHT_BRACKET: keyboard = shift ? 0x9D : 0xDD; break;   // ] }
+			case "[": keyboard = 0x9B; break;   // [ {
+			case "{": keyboard = 0xDB; break;   // [ {
 
-			case KEY_APOSTROPHE: keyboard = shift ? 0xA2 : 0xA7; break;   // ' "
-			case KEY_COMMA: keyboard = shift ? 0xBC : 0xAC; break;   // , <
-			case KEY_PERIOD: keyboard = shift ? 0xBE : 0xAE; break;   // . >
+			case "\\": keyboard = 0x9C; break;   // \ |
+			case "|": keyboard = 0xDC; break;   // \ |
 
-			case KEY_MINUS: keyboard = shift ? 0xDF : 0xAD; break;  // - _
-			case KEY_SLASH: keyboard = shift ? 0xBF : 0xAF; break;  // / ?
-			case KEY_SEMICOLON: keyboard = shift ? 0xBA : 0xBB; break;  // ; :
-			case KEY_EQUAL: keyboard = shift ? 0xAB : 0xBD; break;  // = +
+			case "]": keyboard = 0x9D; break;   // ] }
+			case "}": keyboard = 0xDD; break;   // ] }
 
-			case KEY_BACKSPACE: keyboard = 0x88; break;             // BS
-			case KEY_LEFT: keyboard = 0x88; break;             // BS
-			case KEY_RIGHT: keyboard = 0x95; break;             // NAK
-			case KEY_SPACE: keyboard = 0xA0; break;
-			case KEY_ESCAPE: keyboard = 0x9B; break;             // ESC
-			case KEY_ENTER: keyboard = 0x8D; break;             // CR
+			case "'": keyboard = 0xA2; break;   // ' "
+			case "\"": keyboard = 0xA7; break;   // ' "
 
+			case ",": keyboard = 0xBC; break;   // , <
+			case "<": keyboard = 0xAC; break;   // , <
+
+			case ".": keyboard = 0xBE; break;   // . >
+			case ">": keyboard = 0xAE; break;   // . >
+
+			case "-": keyboard = 0xDF; break;  // - _
+			case "_": keyboard = 0xAD; break;  // - _
+
+			case "/": keyboard = 0xBF; break;  // / ?
+			case "?": keyboard = 0xAF; break;  // / ?
+
+			case ";": keyboard = 0xBA; break;  // ; :
+			case ":": keyboard = 0xBB; break;  // ; :
+
+			case "=": keyboard = 0xAB; break;  // = +
+			case "+": keyboard = 0xBD; break;  // = +
+
+			case "BS": keyboard = 0x88; break;             // BS
+			case "<=": keyboard = 0x88; break;             // BS
+			case "=>": keyboard = 0x95; break;             // NAK
+			case " ": keyboard = 0xA0; break;
+			//case KEY_ESCAPE: keyboard = 0x9B; break;             // ESC
+			case "ENTER": keyboard = 0x8D; break;             // CR
+
+/*
 			// RESET
 			case KEY_F1:
 				resetMachine = true;
@@ -651,9 +711,10 @@ public class Device
 			case KEY_F11:
 				loaddumpmachine = true;
 				break;
+*/
 
 		}
-#endif
+
 		/*
 		* 키보드로 게임패드 에뮬 (게임패드랑 같이 못함)
 			if (IsKeyPressed(KEY_LEFT))
@@ -704,6 +765,7 @@ public class Device
 			}
 		*/
 
+		lastKbdLetter = "NONE";
 	}
 
 	public void UpdateInput()
@@ -945,6 +1007,8 @@ public class Device
 
         if (++flashCycle == 30)
             flashCycle = 0;
+
+		display.Render();
     }
 
 }

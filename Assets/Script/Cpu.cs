@@ -4,7 +4,9 @@ using System.Collections.Generic;
 
 static class Define
 {
-    public const ushort SCREENTEXT_X = 40;
+	public const int TARGET_FRAME = 30;
+
+	public const ushort SCREENTEXT_X = 40;
     public const ushort SCREENTEXT_Y = 24;
     public const ushort SCREENSIZE_X = 280;
     public const ushort SCREENSIZE_Y = 192;
@@ -262,6 +264,12 @@ static class Define
 
 public class Cpu
 {
+	public static bool ValueToBool(int v)
+    {
+		if (v == 0) return false;
+		return true;
+    }
+
     struct StatusFlags
     {
 // 		public byte C;         //0: Carry Flag	
@@ -449,13 +457,13 @@ public class Cpu
         return c;
     }
 
-    void WriteByte(Memory mem, byte value, int addr, ref int cycle)
+    void WriteByte(Memory mem, byte value, ushort addr, ref int cycle)
     {
         mem.WriteByte(addr, value);
         cycle--;
     }
 
-    void Writeushort(Memory mem, ushort value, int addr, ref int cycle)
+    void Writeushort(Memory mem, ushort value, ushort addr, ref int cycle)
     {
         mem.WriteWord(value, addr);
         cycle -= 2;
@@ -1891,13 +1899,13 @@ public class Cpu
 #else
 						PC++;
 						byte v0 = (byte)(((PC) >> 8) & 0xFF);
-						WriteByte(mem, v0, 0x100 + SP, ref cycle);
+						WriteByte(mem, v0, (ushort)(0x100 + SP), ref cycle);
 						SP--;
 						byte v1 = (byte)(PC & 0xFF);
-						WriteByte(mem, v1, 0x100 + SP, ref cycle);
+						WriteByte(mem, v1, (ushort)(0x100 + SP), ref cycle);
 						SP--;
 						byte v2 = (byte)(PS | Define.FLAG_BREAK);
-						WriteByte(mem, v2, 0x100 + SP, ref cycle);
+						WriteByte(mem, v2, (ushort)(0x100 + SP), ref cycle);
 						SP--;
 						Flag.I = true;
 						Flag.D = false;
@@ -1946,7 +1954,7 @@ public class Cpu
 
 			tick += (ulong)(prevcycle - cycle);
 
-
+/*
             if (linecount == 26764035)
             {
                 enableLog = true;
@@ -1966,8 +1974,8 @@ public class Cpu
 					inst,
 					Flag.C ? 1 : 0, Flag.Z ? 1 : 0, Flag.I ? 1 : 0, Flag.D ? 1 : 0, Flag.B ? 1 : 0, Flag.Unused ? 1 : 0, Flag.V ? 1 : 0, Flag.N ? 1 : 0);
 			}
-
 			linecount++;
+*/
 
 		}
 

@@ -17,9 +17,16 @@ public class Memory
     public byte[] bk2 = new byte[Define.BK2SIZE];  // bank 2 of Language Card 4K in $D000-$DFFF
     public byte[] sl6 = new byte[Define.SL6SIZE];  // P5A disk ][ PROM in slot 6
 
+    private Device device = null;
+
     public Memory()
     {
         Reset();
+    }
+
+    public void SetDevice(Device device)
+    {
+        this.device = device;
     }
 
     public void Reset()
@@ -64,13 +71,13 @@ public class Memory
         if ((address & 0xFF00) == Define.SL6START)
             return sl6[address - Define.SL6START];  // disk][
 
-//         if ((address & 0xF000) == 0xC000)
-//             return (device->SoftSwitch(this, address, 0, false));
+         if ((address & 0xF000) == 0xC000)
+             return (device.SoftSwitch(this, address, 0, false));
 
         return 0;
     }
 
-    public void WriteByte(int address, byte value)
+    public void WriteByte(ushort address, byte value)
     {
         if (address < Define.RAMSIZE)
         {
@@ -91,7 +98,7 @@ public class Memory
 
         if ((address & 0xF000) == 0xC000)
         {
-//            device->SoftSwitch(this, address, value, true);
+            device.SoftSwitch(this, address, value, true);
             return;
         }
     }
@@ -104,10 +111,10 @@ public class Memory
         return w;
     }
 
-    public void WriteWord(ushort value, int addr)
+    public void WriteWord(ushort value, ushort addr)
     {
         WriteByte(addr, (byte)(value >> 8));
-        WriteByte(addr + 1, (byte)(value & 0xFF));
+        WriteByte((ushort)(addr + 1), (byte)(value & 0xFF));
     }
 
 }
