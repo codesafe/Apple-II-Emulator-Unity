@@ -926,7 +926,7 @@ public class Device
 
                                 DrawPoint(x++, line, Rom.hcolor[colorIdx, 0], Rom.hcolor[colorIdx, 1], Rom.hcolor[colorIdx, 2]);
                                 pbit = bits[bit++];
-                                even = (byte)(even == 1 ? 0 : 8);
+                                even = (byte)(even > 0 ? 0 : 8);
                             }
 
                             HiResCache[line, col] = word;
