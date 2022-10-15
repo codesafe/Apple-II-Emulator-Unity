@@ -40,8 +40,8 @@ public class Machine : MonoBehaviour
         Array.Copy(Rom.appleIIrom, mem.rom, 12288);
         Array.Copy(Rom.diskII, mem.sl6, 256);
 
-        //device.InsertFloppy("DOS3.3", 0);
-        device.InsertFloppy("LodeRunner", 0);
+        device.InsertFloppy("DOS3.3", 0);
+        //device.InsertFloppy("LodeRunner", 0);
         
     }
 

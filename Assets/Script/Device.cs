@@ -29,6 +29,22 @@ public class FloppyDrive
 };
 
 
+public class GamePad
+{
+    public bool isavailable;
+	public bool[] axis = new bool [4];
+	public bool pressbtn1;
+	public bool pressbtn2;
+
+	public GamePad()
+    {
+        isavailable = false;
+        axis[0] = axis[1] = axis[2] = axis[3] = false;
+        pressbtn1 = false;
+        pressbtn2 = false;
+    }
+};
+
 public class Screen
 {
     public int[] buffer = new int[Define.SCREENSIZE_X * Define.SCREENSIZE_Y];
@@ -81,15 +97,16 @@ public class Device
     public bool resetMachine;
     bool colorMonitor;
     byte zoomscale;
-
     byte keyboard;
 
-    ///////////////////////////////////////////////////////// SOUND
+	///////////////////////////////////////////////////////// SOUND
 
-    bool silence;
-    int volume;
+	short [,] audioBuffer = new short[2, Define.AUDIOBUFFERSIZE];
+
+	bool silence;
+    short volume = 5;
     bool speaker;
-    long speakerLastTick;
+    ulong speakerLastTick;
 
     ///////////////////////////////////////////////////////// DISPLAY
 
@@ -111,10 +128,12 @@ public class Device
 	float[] GCP = new float[2];
     float [] GCC = new float[2];
 	int [] GCD = new int[2];
-	int [] GCA = new int[2];
+	bool[] GCA = new bool[2];
 	byte GCActionSpeed;
 	byte GCReleaseSpeed;
     long GCCrigger;
+
+	GamePad gamepad = new GamePad();
 
 	/////////////////////////////////////////////////////////
 
@@ -139,7 +158,13 @@ public class Device
 		font = new Font();
 		font.Create();
 
-		GameManager.Instance.hitKBD = KeyBoardCallback;
+        for (int i = 0; i < Define.AUDIOBUFFERSIZE; i++)
+        {
+            audioBuffer[0, i] = volume;
+            audioBuffer[1, i] = (short)(-volume);
+        }
+
+        GameManager.Instance.hitKBD = KeyBoardCallback;
 	}
 
     public void Reset()
@@ -188,8 +213,8 @@ public class Device
         GCC[1] = 0;
         GCD[0] = 0;
         GCD[1] = 0;
-        GCA[0] = 0;
-        GCA[1] = 0;
+        GCA[0] = false;
+        GCA[1] = false;
         GCActionSpeed = 64;
         GCReleaseSpeed = 64;
 
@@ -317,9 +342,9 @@ public class Device
 			// Push Button 0
 			case 0xC061:
 				{
-// 					if (gamepad.pressbtn2)
-// 						return 0x80;
-// 					else
+					if (gamepad.pressbtn2)
+						return 0x80;
+					else
 						return 0;
 				}
 			// Push Button 1
@@ -496,12 +521,12 @@ public class Device
         {
             speaker = !speaker;
             // 1023000Hz / 96000Hz = 10.65625
-//             unsigned int length = (unsigned int)((cpu->tick - speakerLastTick) / 10.65625f);
-// 
-//             speakerLastTick = cpu->tick;
-//             if (length > AUDIOBUFFERSIZE)
-//                 length = AUDIOBUFFERSIZE;
-// 
+            int length = (int)((cpu.tick - speakerLastTick) / 10.65625f);
+			speakerLastTick = cpu.tick;
+
+            if (length > Define.AUDIOBUFFERSIZE)
+                length = Define.AUDIOBUFFERSIZE;
+
 //             SDL_QueueAudio(audioDevice, audioBuffer[speaker], length | 1);
         }
     }
@@ -654,29 +679,29 @@ public class Device
 			case "'": keyboard = 0xA2; break;   // ' "
 			case "\"": keyboard = 0xA7; break;   // ' "
 
-			case ",": keyboard = 0xBC; break;   // , <
-			case "<": keyboard = 0xAC; break;   // , <
+			case "<": keyboard = 0xBC; break;   // , <
+			case ",": keyboard = 0xAC; break;   // , <
 
-			case ".": keyboard = 0xBE; break;   // . >
-			case ">": keyboard = 0xAE; break;   // . >
+			case ">": keyboard = 0xBE; break;   // . >
+			case ".": keyboard = 0xAE; break;   // . >
+			
+			case "_": keyboard = 0xDF; break;  // - _
+			case "-": keyboard = 0xAD; break;  // - _
 
-			case "-": keyboard = 0xDF; break;  // - _
-			case "_": keyboard = 0xAD; break;  // - _
-
-			case "/": keyboard = 0xBF; break;  // / ?
-			case "?": keyboard = 0xAF; break;  // / ?
+			case "/": keyboard = 0xAF; break;  // / ?
+			case "?": keyboard = 0xBF; break;  // / ?
 
 			case ";": keyboard = 0xBA; break;  // ; :
 			case ":": keyboard = 0xBB; break;  // ; :
 
-			case "=": keyboard = 0xAB; break;  // = +
-			case "+": keyboard = 0xBD; break;  // = +
+			case "+": keyboard = 0xAB; break;  // = +
+			case "=": keyboard = 0xBD; break;  // = +
 
 			case "BS": keyboard = 0x88; break;             // BS
 			case "<=": keyboard = 0x88; break;             // BS
 			case "=>": keyboard = 0x95; break;             // NAK
 			case " ": keyboard = 0xA0; break;
-			//case KEY_ESCAPE: keyboard = 0x9B; break;             // ESC
+			case "ESC": keyboard = 0x9B; break;             // ESC
 			case "ENTER": keyboard = 0x8D; break;             // CR
 
 /*
@@ -768,10 +793,131 @@ public class Device
 		lastKbdLetter = "NONE";
 	}
 
+	
+	// game pad update
+	void UpdateGamepad()
+	{
+		if (gamepad.isavailable)
+		{
+/*
+			SDL_Event event;
+			while (SDL_PollEvent(&event) != 0) 
+			{
+				if (event.type == SDL_JOYBUTTONDOWN || event.type == SDL_JOYBUTTONUP)
+				{
+					if (event.jbutton.button == 0)
+						gamepad.pressbtn1 = event.type == SDL_JOYBUTTONDOWN ? true : false;
+
+					if (event.jbutton.button == 1)
+						gamepad.pressbtn2 = event.type == SDL_JOYBUTTONDOWN ? true : false;
+				}
+				else if (event.type == SDL_JOYAXISMOTION || event.type == SDL_JOYHATMOTION) 
+				{
+
+					if (event.jaxis.which == 0)
+					{
+						if (event.jaxis.axis == 0)
+						{
+							if ((event.jaxis.value > -8000) && (event.jaxis.value < 8000))
+							{
+								if (gamepad.axis[GAMEPAD_LEFT])
+								{
+									GCD[0] = 1;  GCA[0] = 0;
+									gamepad.axis[GAMEPAD_LEFT] = false;
+								}
+
+
+								if (gamepad.axis[GAMEPAD_RIGHT])
+								{
+									GCD[0] = -1; GCA[0] = 0;
+									gamepad.axis[GAMEPAD_RIGHT] = false;
+								}
+							}
+							else
+							{
+								if (event.jaxis.value < 0 )
+									gamepad.axis[GAMEPAD_LEFT] = true;
+								else
+									gamepad.axis[GAMEPAD_RIGHT] = true;
+							}
+						}
+						else if (event.jaxis.axis == 1)
+						{
+							if ((event.jaxis.value > -8000) && (event.jaxis.value < 8000))
+							{
+								if (gamepad.axis[GAMEPAD_UP])
+								{
+									GCD[1] = 1;  GCA[1] = 0;
+									gamepad.axis[GAMEPAD_UP] = false;
+								}
+
+								if (gamepad.axis[GAMEPAD_DOWN])
+								{
+									GCD[1] = -1; GCA[1] = 0;
+									gamepad.axis[GAMEPAD_DOWN] = false;
+								}
+							}
+							else
+							{
+								if (event.jaxis.value < 0)
+									gamepad.axis[GAMEPAD_UP] = true;
+								else
+									gamepad.axis[GAMEPAD_DOWN] = true;
+							}
+						}
+					}
+				}
+			}
+*/
+
+			if (gamepad.axis[Define.GAMEPAD_LEFT])
+			{
+				GCD[0] = -1; 
+				GCA[0] = true;
+			}
+			if (gamepad.axis[Define.GAMEPAD_RIGHT])
+			{
+				GCD[0] = 1;  
+				GCA[0] = true;
+			}
+			if (gamepad.axis[Define.GAMEPAD_UP])
+			{
+				GCD[1] = -1; 
+				GCA[1] = true;
+			}
+			if (gamepad.axis[Define.GAMEPAD_DOWN])
+			{
+				GCD[1] = 1; 
+				GCA[1] = true;
+			}
+
+			// update paddles positions
+			for (int pdl = 0; pdl < 2; pdl++) 
+			{    
+				// actively pushing the stick
+				if (GCA[pdl]) 
+				{
+					GCP[pdl] += GCD[pdl] * GCActionSpeed;
+					if (GCP[pdl] > 255) GCP[pdl] = 255;
+					if (GCP[pdl] < 0)   GCP[pdl] = 0;
+				}
+				else 
+				{
+					// the stick is return back to center
+					GCP[pdl] += GCD[pdl] * GCReleaseSpeed;
+					if (GCD[pdl] == 1 && GCP[pdl] > 127) GCP[pdl] = 127;
+					if (GCD[pdl] == -1 && GCP[pdl] < 127) GCP[pdl] = 127;
+				}
+			}
+
+		}
+	}
+
+
 	public void UpdateInput()
     {
         UpdateKeyBoard();
-        //UpdateGamepad();
+        UpdateGamepad();
     }
 
     // 플로피 디스크 업데이트

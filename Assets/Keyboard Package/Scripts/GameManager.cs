@@ -29,14 +29,27 @@ public class GameManager : MonoBehaviour
         hitKBD?.Invoke("ENTER");
     }
 
+    bool shift = false;
+
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.LeftShift))
+            shift = true;
+        if (Input.GetKeyUp(KeyCode.LeftShift))
+            shift = false;
+        if (Input.GetKeyDown(KeyCode.RightShift))
+            shift = true;
+        if (Input.GetKeyUp(KeyCode.RightShift))
+            shift = false;
+
         if (Input.GetKeyDown(KeyCode.Space))
             AddLetter(" ");
         else if (Input.GetKeyDown(KeyCode.Return))
             AddLetter("ENTER");
         else if (Input.GetKeyDown(KeyCode.Backspace))
             AddLetter("BS");
+        else if (Input.GetKeyDown(KeyCode.Escape))
+            AddLetter("ESC");
 
         if (Input.GetKeyDown(KeyCode.A))
             AddLetter("A");
@@ -91,25 +104,117 @@ public class GameManager : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.Z))
             AddLetter("Z");
         else if (Input.GetKeyDown(KeyCode.Alpha0))
-            AddLetter("0");
+        {
+            if( shift )
+                AddLetter(")");
+            else
+                AddLetter("0");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha1))
-            AddLetter("1");
+        {
+            if (shift)
+                AddLetter("!");
+            else
+                AddLetter("1");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha2))
-            AddLetter("2");
+        {
+            if (shift)
+                AddLetter("@");
+            else
+                AddLetter("2");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha3))
-            AddLetter("3");
+        {
+            if (shift)
+                AddLetter("#");
+            else
+                AddLetter("3");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha4))
-            AddLetter("4");
+        {
+            if (shift)
+                AddLetter("$");
+            else
+                AddLetter("4");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha5))
-            AddLetter("5");
+        {
+            if (shift)
+                AddLetter("%");
+            else
+                AddLetter("5");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha6))
-            AddLetter("6");
+        {
+            if (shift)
+                AddLetter("^");
+            else
+                AddLetter("6");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha7))
-            AddLetter("7");
+        {
+            if (shift)
+                AddLetter("&");
+            else
+                AddLetter("7");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha8))
-            AddLetter("8");
+        {
+            if (shift)
+                AddLetter("*");
+            else
+                AddLetter("8");
+        }
         else if (Input.GetKeyDown(KeyCode.Alpha9))
-            AddLetter("9");
+        {
+            if (shift)
+                AddLetter("(");
+            else
+                AddLetter("9");
+        }
+        else if (Input.GetKeyDown(KeyCode.Slash))
+        {
+            if (shift)
+                AddLetter("?");
+            else
+                AddLetter("/");
+        }
+        else if (Input.GetKeyDown(KeyCode.Equals))
+        {
+            if (shift)
+                AddLetter("+");
+            else
+                AddLetter("=");
+        }
+        else if (Input.GetKeyDown(KeyCode.Comma))
+        {
+            if (shift)
+                AddLetter("<");
+            else
+                AddLetter(",");
+        }
+        else if (Input.GetKeyDown(KeyCode.Minus))
+        {
+            if (shift)
+                AddLetter("-");
+            else
+                AddLetter("-");
+        }
+        else if (Input.GetKeyDown(KeyCode.Period))
+        {
+            if (shift)
+                AddLetter(">");
+            else
+                AddLetter(".");
+        }
+        else if (Input.GetKeyDown(KeyCode.Semicolon))
+        {
+            if (shift)
+                AddLetter(";");
+            else
+                AddLetter(":");
+        }
 
     }
 

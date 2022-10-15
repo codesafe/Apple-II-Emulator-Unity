@@ -11,7 +11,13 @@ static class Define
     public const ushort SCREENSIZE_X = 280;
     public const ushort SCREENSIZE_Y = 192;
 
-    public const ushort STACK_ADDRESS = 0x0100;
+	public const byte GAMEPAD_LEFT = 0;
+	public const byte GAMEPAD_RIGHT = 1;
+	public const byte GAMEPAD_UP = 2;
+	public const byte GAMEPAD_DOWN = 3;
+	public const short AUDIOBUFFERSIZE = 4096;
+
+	public const ushort STACK_ADDRESS = 0x0100;
 
 	public const byte STACK_POS = 0xFD;
 	public const ushort PC_START = 0xFFFC;
