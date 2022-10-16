@@ -7,15 +7,26 @@ using UnityEngine.UI;
 public class Machine : MonoBehaviour
 {
     [SerializeField] RawImage screen;
+    [SerializeField] Transform fddIcon;
+
+    [SerializeField] GameObject kbd;
+    [SerializeField] GameObject joypad;
+    [SerializeField] Joystick joystick;
+    [SerializeField] BTN[] btn;
 
     public Memory mem = new Memory();
     public Device device = new Device();
     public Cpu cpu = new Cpu();
 
     bool appstarted = false;
+    bool btn0 = false;
+    bool btn1 = false;
 
     void Start()
     {
+        btn[0].SetMachine(this);
+        btn[1].SetMachine(this);
+
         mem.Reset();
         mem.SetDevice(device);
         device.Reset();
@@ -77,7 +88,14 @@ public class Machine : MonoBehaviour
             return;
         }
 
-        device.UpdateInput();
+        float x = joystick.Horizontal;
+        float y = joystick.Vertical;
+
+//         if( x != 0 || y != 0 )
+//             Debug.Log($" XY : {x} / {y}");
+
+        device.UpdateInput( x, y, btn0, btn1);
+
         cpu.Run(mem, ref cycle);
 
         while (true)
@@ -97,20 +115,65 @@ public class Machine : MonoBehaviour
 
         if (frame++ > Define.TARGET_FRAME)
             frame = 0;
+
+        //float rot = device.GetFddRot();
+        //fddIcon.rotation = Quaternion.Euler(0, 0, rot);
     }
 
     void Update()
     {
         if( appstarted )
-            RefreshDisplay();
-    }
-
-    void FixedUpdate()
-    {
-        if (appstarted)
         {
             int p = 17050;
             Run(ref p);
+            RefreshDisplay();
         }
+
+    }
+
+//     void FixedUpdate()
+//     {
+//         if (appstarted)
+//         {
+//             //int p = 17050;
+//             int p = (1023000 / 60);	// 1.023MHz
+//             Run(ref p);
+//         }
+//     }
+
+    public void OnClickChangeKBD()
+    {
+        if( kbd.activeSelf )
+        {
+            kbd.SetActive(false);
+            joypad.SetActive(true);
+            //device.SetJoyPad(true);
+        }
+        else
+        {
+            kbd.SetActive(true);
+            joypad.SetActive(false);
+            //device.SetJoyPad(false);
+        }
+    }
+
+    public void OnPushBtn(string p)
+    {
+        //Debug.Log($"Push : {p}");
+
+        if( p == "0")
+            btn0 = true;
+        if (p == "1")
+            btn1 = true;
+    }
+
+    public void OnReleaseBtn(string p)
+    {
+        //Debug.Log($"Release : {p}");
+
+        if (p == "0")
+            btn0 = false;
+        if (p == "1")
+            btn1 = false;
     }
 }

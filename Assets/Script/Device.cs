@@ -914,7 +914,7 @@ public class Device
 	}
 
 
-	public void UpdateInput()
+	public void UpdateInput(float x, float y, bool b0, bool b1)
     {
         UpdateKeyBoard();
         UpdateGamepad();
