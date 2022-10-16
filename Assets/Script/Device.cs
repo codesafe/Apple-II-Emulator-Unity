@@ -105,12 +105,12 @@ public class Device
 
 	bool silence;
     short volume = 5;
-    bool speaker;
+    byte speaker = 0;
     ulong speakerLastTick;
 
-    ///////////////////////////////////////////////////////// DISPLAY
+	///////////////////////////////////////////////////////// DISPLAY
 
-    bool textMode;
+	bool textMode;
     bool mixedMode;
     bool hires_Mode;
     ushort videoPage;
@@ -131,7 +131,7 @@ public class Device
 	bool[] GCA = new bool[2];
 	byte GCActionSpeed;
 	byte GCReleaseSpeed;
-    long GCCrigger;
+    ulong GCCrigger;
 
 	GamePad gamepad = new GamePad();
 
@@ -183,7 +183,7 @@ public class Device
 		pixelGR.height = 4;
 		
         silence = false;
-        speaker = false;
+        speaker = 0;
         speakerLastTick = 0;
 
         // DISK ][
@@ -519,7 +519,7 @@ public class Device
     {
         if (!silence)
         {
-            speaker = !speaker;
+            speaker = (byte)(1 - speaker);
             // 1023000Hz / 96000Hz = 10.65625
             int length = (int)((cpu.tick - speakerLastTick) / 10.65625f);
 			speakerLastTick = cpu.tick;
@@ -531,16 +531,39 @@ public class Device
         }
     }
 
+	public short [] GetSoundBuffer()
+    {
+		short[] buffer = new short[Define.AUDIOBUFFERSIZE];
+
+		for(int i=0; i< Define.AUDIOBUFFERSIZE; i++)
+			buffer[i] = audioBuffer[speaker, i];
+
+		return buffer;
+	}
+
 	byte readPaddle(int pdl)
     {
-		return 0;
+        const float GCFreq = 6.6f;
+
+        // decreases the countdown
+        GCC[pdl] -= (cpu.tick - GCCrigger) / GCFreq;
+
+        // timeout
+        if (GCC[pdl] <= 0)
+        {
+            GCC[pdl] = 0;
+            return 0;
+        }
+
+        // not timeout, return something with the MSB set
+        return 0x80;
     }
 
     void resetPaddles()
     {
         GCC[0] = GCP[0] * GCP[0];
         GCC[1] = GCP[1] * GCP[1];
-        //GCCrigger = cpu->tick;
+        GCCrigger = cpu.tick;
     }
 
 

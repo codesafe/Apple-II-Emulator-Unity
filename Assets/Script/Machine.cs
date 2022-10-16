@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+[RequireComponent(typeof(AudioSource))]
 public class Machine : MonoBehaviour
 {
     [SerializeField] RawImage screen;
@@ -22,8 +23,18 @@ public class Machine : MonoBehaviour
     bool btn0 = false;
     bool btn1 = false;
 
+    AudioClip _clip;
+    AudioSource audiosource;
+
+    int count = 0;
+    int length;
+    int sampling_rate;
+    float[] temp_sample;
+
     void Start()
     {
+        CreateSound();
+
         btn[0].SetMachine(this);
         btn[1].SetMachine(this);
 
@@ -46,13 +57,50 @@ public class Machine : MonoBehaviour
         appstarted = true;
     }
 
+    void CreateSound()
+    {
+        audiosource = GetComponent<AudioSource>();
+
+//         AudioClip myClip = AudioClip.Create("Sound", samplerate, 1, samplerate, true, OnAudioRead, OnAudioSetPosition);
+//         audiosource.clip = myClip;
+//         audiosource.Play();
+
+
+//         float fq = 440;
+//         sampling_rate = 44100;
+//         _clip = CreateClip(fq.ToString(), sampling_rate, fq);
+// 
+//         audiosource.clip = _clip;
+//         //audiosource.loop = true;
+//         audiosource.Play();
+
+    }
+
+    private AudioClip CreateClip(string clipName, int samplerate, float frequency)
+    { 
+        var clip = AudioClip.Create(clipName, samplerate, 1, samplerate, true);
+        //(string name, int lengthSamples, int channels, int frequency, bool _3D, bool stream, PCMReaderCallback pcmreadercallback);
+        var size = clip.frequency * (int)Mathf.Ceil(clip.length);
+        float[] data = new float[size];
+
+        int count = 0;
+        while (count < data.Length)
+        {
+            data[count] = Mathf.Sin(2 * Mathf.PI * frequency * count / samplerate);
+            count++;
+        }
+
+        clip.SetData(data, 0);
+        return clip;
+    }
+
     void LoadRom()
     {
         Array.Copy(Rom.appleIIrom, mem.rom, 12288);
         Array.Copy(Rom.diskII, mem.sl6, 256);
 
-        device.InsertFloppy("DOS3.3", 0);
-        //device.InsertFloppy("LodeRunner", 0);
+        //device.InsertFloppy("DOS3.3", 0);
+        device.InsertFloppy("LodeRunner", 0);
         
     }
 
@@ -165,6 +213,7 @@ public class Machine : MonoBehaviour
             btn0 = true;
         if (p == "1")
             btn1 = true;
+
     }
 
     public void OnReleaseBtn(string p)
@@ -176,4 +225,44 @@ public class Machine : MonoBehaviour
         if (p == "1")
             btn1 = false;
     }
+
+
+    ///////////////////////////////////////////////////////////////////////////////// SOUND
+
+    int position = 0;
+    int samplerate = 44100;
+    float frequency = 440;
+
+    void OnAudioFilterRead(float[] data, int channels)
+    {
+        int count = 0;
+        short[] b = device.GetSoundBuffer();
+        while (count < data.Length)
+        {
+            //data[count] = Mathf.Sin(2 * Mathf.PI * frequency * position / samplerate);
+            data[count] = (float)(b[count] * frequency / samplerate);
+            position++;
+            count++;
+        }
+    }
+
+
+/*
+    void OnAudioRead(float[] data)
+    {
+        int count = 0;
+        while (count < data.Length)
+        {
+            data[count] = Mathf.Sin(2 * Mathf.PI * frequency * position / samplerate);
+            position++;
+            count++;
+        }
+    }
+
+    void OnAudioSetPosition(int newPosition)
+    {
+        position = newPosition;
+    }
+*/
+
 }
